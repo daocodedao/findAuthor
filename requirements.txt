@@ -1,0 +1,12 @@
+requests
+feedparser
+pandas
+beautifulsoup4
+arxiv
+openai
+PyPDF2
+schedule
+mysql-connector-python
+crawl4ai
+sqlalchemy
+gradio==5.23.0

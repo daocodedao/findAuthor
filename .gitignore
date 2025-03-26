@@ -1,0 +1,14 @@
+venv/
+# .vscode/
+__pycache__/
+czsc.html
+nohub.log
+logs/
+config_binance.py
+data/
+config/coinHandleAll.txt
+*.pickle
+coinHandleRightNow.txt
+.vscode/
+cache/
+.env
