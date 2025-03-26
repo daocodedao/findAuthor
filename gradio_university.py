@@ -8,7 +8,12 @@ from model.universityCollege import UniversityCollege
 from model.universityTeacher import UniversityTeacher
 from db_manager import DBManager
 from utils.logger_settings import api_logger
-
+# 导入所需模型
+from model.paper import Paper
+from model.paperAuthor import PaperAuthor
+# 添加 desc 导入
+from sqlalchemy import desc
+        
 # 设置更详细的日志格式
 api_logger.info("启动大学信息管理系统")
 
@@ -351,6 +356,110 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
     
     return pd.DataFrame(data)
 
+# 在文件中添加新的搜索函数
+
+def search_paper_authors(is_china=True, author_positions=None, has_email=False, 
+                         affiliation=None, paper_title=None, research_direction=None):
+    """搜索论文作者"""
+    api_logger.info(f"搜索论文作者，条件: 中国作者:{is_china}, 作者类型:{author_positions}, "
+                   f"有邮箱:{has_email}, 机构:{affiliation}, 标题:{paper_title}, 研究方向:{research_direction}")
+    
+    # 获取会话
+    session = db_manager._get_session()
+    
+    try:
+        # 构建基本查询
+        query = session.query(
+            PaperAuthor,
+            Paper.title,
+            Paper.chinese_title,
+            Paper.research_direction,
+            Paper.publish_date
+        ).join(
+            Paper, PaperAuthor.paper_id == Paper.paper_id
+        )
+        
+        # 应用筛选条件
+        # 1. 是否中国作者
+        if is_china:
+            query = query.filter(
+                (PaperAuthor.country.like('%中国%')) | 
+                (PaperAuthor.country.like('%China%')) |
+                (PaperAuthor.country.like('%CN%'))
+            )
+        
+        # 2. 作者类型
+        if author_positions and len(author_positions) > 0:
+            position_filters = []
+            if "通讯作者" in author_positions:
+                position_filters.append(PaperAuthor.position.like('%通讯%'))
+                position_filters.append(PaperAuthor.position.like('%corresponding%'))
+            if "第一作者" in author_positions:
+                position_filters.append(PaperAuthor.position.like('%第一%'))
+                position_filters.append(PaperAuthor.position.like('%first%'))
+            if "其他作者" in author_positions and len(author_positions) < 3:
+                # 如果选择了"其他作者"但没有选择全部类型
+                position_filters.append(~PaperAuthor.position.like('%通讯%'))
+                position_filters.append(~PaperAuthor.position.like('%corresponding%'))
+                position_filters.append(~PaperAuthor.position.like('%第一%'))
+                position_filters.append(~PaperAuthor.position.like('%first%'))
+            
+            if position_filters:
+                from sqlalchemy import or_
+                query = query.filter(or_(*position_filters))
+        
+        # 3. 是否有邮箱
+        if has_email:
+            query = query.filter(PaperAuthor.email != None)
+            query = query.filter(PaperAuthor.email != '')
+        
+        # 4. 所属机构
+        if affiliation and affiliation.strip():
+            query = query.filter(PaperAuthor.affiliation.like(f'%{affiliation.strip()}%'))
+        
+        # 5. 论文标题
+        if paper_title and paper_title.strip():
+            query = query.filter(
+                (Paper.title.like(f'%{paper_title.strip()}%')) |
+                (Paper.title_cn.like(f'%{paper_title.strip()}%'))
+            )
+        
+        # 6. 研究方向
+        if research_direction and research_direction.strip():
+            query = query.filter(Paper.research_direction.like(f'%{research_direction.strip()}%'))
+        
+        # 执行查询
+        results = query.order_by(desc(Paper.publish_date)).all()
+        api_logger.info(f"搜索结果: 找到 {len(results)} 名论文作者")
+        
+        # 转换为DataFrame
+        data = []
+        for author, title, title_cn, research_dir, publish_date in results:
+            data.append({
+                "ID": author.id,
+                "论文ID": author.paper_id,
+                "作者姓名": author.author_name,
+                "作者类型": author.position or "未知",
+                "所属机构": author.affiliation or "未知",
+                "邮箱": author.email or "未提供",
+                "国家": author.country or "未知",
+                "论文标题": title_cn or title,
+                "研究方向": research_dir or "未知",
+                "发布日期": publish_date.strftime("%Y-%m-%d") if publish_date else "未知"
+            })
+        
+        # 关闭会话
+        session.close()
+        
+        return pd.DataFrame(data)
+    
+    except Exception as e:
+        api_logger.error(f"搜索论文作者时出错: {str(e)}")
+        session.close()
+        # 返回空DataFrame
+        return pd.DataFrame(columns=["ID", "论文ID", "作者姓名", "作者类型", "所属机构", 
+                                    "邮箱", "国家", "论文标题", "研究方向", "发布日期"])
+
 with gr.Blocks(title="大学信息管理系统") as demo:
     gr.Markdown("# 大学信息管理系统")
     
@@ -530,6 +639,55 @@ with gr.Blocks(title="大学信息管理系统") as demo:
             def load_all_teachers():
                 return search_teachers()
 
+        # 添加第四个标签页：论文作者搜索
+        with gr.TabItem("论文作者搜索"):
+            with gr.Row():
+                # 搜索条件
+                with gr.Column(scale=1):
+                    is_china_checkbox = gr.Checkbox(
+                        label="是否中国作者", 
+                        value=True
+                    )
+                    author_position = gr.CheckboxGroup(
+                        label="作者类型",
+                        choices=["通讯作者", "第一作者", "其他作者"],
+                        value=["通讯作者", "第一作者", "其他作者"]
+                    )
+                    has_email_checkbox = gr.Checkbox(
+                        label="是否有邮箱", 
+                        value=False
+                    )
+                    affiliation_search = gr.Textbox(
+                        label="所属机构",
+                        placeholder="输入机构名称关键词"
+                    )
+                    paper_title_search = gr.Textbox(
+                        label="论文标题",
+                        placeholder="输入论文标题关键词"
+                    )
+                    research_direction_search = gr.Textbox(
+                        label="研究方向",
+                        placeholder="输入研究方向关键词"
+                    )
+                    author_search_button = gr.Button("搜索")
+            
+            with gr.Row():
+                # 搜索结果
+                authors_info = gr.DataFrame(label="论文作者信息")
+            
+            # 搜索按钮点击事件
+            author_search_button.click(
+                fn=search_paper_authors,
+                inputs=[
+                    is_china_checkbox,
+                    author_position,
+                    has_email_checkbox,
+                    affiliation_search,
+                    paper_title_search,
+                    research_direction_search
+                ],
+                outputs=authors_info
+            )
 
     # 创建初始化函数，在界面加载时执行
     def init_interface():
@@ -562,3 +720,7 @@ if __name__ == "__main__":
     demo.queue()
     api_logger.info("Gradio界面已启动，等待用户访问...")
     demo.launch(share=False, server_port=6610)
+
+# 在现有的 with gr.Tabs() 结构中添加新的标签页
+
+        
