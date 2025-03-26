@@ -23,7 +23,13 @@ from utils.pdfUtils import HTML_CACHE_DIR
 from model.universityCollege import UniversityCollege
 from model.universityTeacher import UniversityTeacher
 from db_manager import DBManager
+import schedule
+import threading
 
+# 添加任务锁，防止任务重叠执行
+task_lock = threading.Lock()
+is_task_running = False
+    
     
 db_manager = DBManager()
 db_session = db_manager._get_session()
@@ -442,48 +448,69 @@ class CollegeWebCrawler:
     
 
 def main():
-    max_pages = 1000
-    delay = 1.0
-    timeout = 30
-
-    # 获取所有有网址的学院
-    colleges = UniversityCollege.get_all(db_session)
-    api_logger.info(f"获取到 {len(colleges)} 个有网址的学院")
-    # 遍历所有学院
-    for college in colleges:
-        if not college.college_url:
-            api_logger.error(f"{college.university_name}:{college.college_name} 没有网址，跳过")
-            continue
-        if college.is_crawl:
-            api_logger.info(f"{college.university_name}:{college.college_name} 已爬取过，跳过")
-            continue
-            
-        api_logger.info(f"开始爬取: {college.university_name}:{college.college_name}, URL: {college.college_url}")
-        
-        # 创建爬虫实例
-        crawler = CollegeWebCrawler(
-            max_pages=max_pages,
-            delay=delay,
-            timeout=timeout
-        )
-        
-        # 设置当前学院ID
-        crawler.college = college
-        
-        # 开始爬取
-        try:
-            crawler.get_all_pages(college.college_url)
-            api_logger.info(f"完成爬取: {college.university_name}:{college.college_name}")
-            college.is_crawl = True
-            UniversityCollege.save(db_session, college)
-            
-        except Exception as e:
-            api_logger.error(f"爬取 {college.university_name}:{college.college_name} 出错: {e}")
-        
-        # 等待一段时间再爬取下一个学院，避免请求过于频繁
-        time.sleep(5)
+    global is_task_running
     
-    api_logger.info("所有学院爬取完成")
+    # 检查任务是否已在运行
+    if is_task_running:
+        api_logger.warning("上一个爬虫任务还在运行中，跳过本次执行")
+        return
+    
+    # 获取锁并设置运行标志
+    with task_lock:
+        is_task_running = True
+    
+    try:
+        api_logger.info(f"开始执行爬虫任务，时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        
+        max_pages = 1000
+        delay = 1.0
+        timeout = 30
+
+        # 获取所有有网址的学院
+        colleges = UniversityCollege.get_all(db_session)
+        api_logger.info(f"获取到 {len(colleges)} 个有网址的学院")
+        # 遍历所有学院
+        for college in colleges:
+            if not college.college_url:
+                api_logger.error(f"{college.university_name}:{college.college_name} 没有网址，跳过")
+                continue
+            if college.is_crawl:
+                api_logger.info(f"{college.university_name}:{college.college_name} 已爬取过，跳过")
+                continue
+                
+            api_logger.info(f"开始爬取: {college.university_name}:{college.college_name}, URL: {college.college_url}")
+            
+            # 创建爬虫实例
+            crawler = CollegeWebCrawler(
+                max_pages=max_pages,
+                delay=delay,
+                timeout=timeout
+            )
+            
+            # 设置当前学院ID
+            crawler.college = college
+            
+            # 开始爬取
+            try:
+                crawler.get_all_pages(college.college_url)
+                api_logger.info(f"完成爬取: {college.university_name}:{college.college_name}")
+                college.is_crawl = True
+                UniversityCollege.save(db_session, college)
+                
+            except Exception as e:
+                api_logger.error(f"爬取 {college.university_name}:{college.college_name} 出错: {e}")
+            
+            # 等待一段时间再爬取下一个学院，避免请求过于频繁
+            time.sleep(5)
+        
+        api_logger.info("所有学院爬取完成")
+        api_logger.info(f"爬虫任务完成，时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+    except Exception as e:
+        api_logger.error(f"爬虫任务执行出错: {str(e)}")
+    finally:
+        # 无论任务是否成功完成，都要重置运行标志
+        with task_lock:
+            is_task_running = False
 
 def testUrl():
     url = "https://cs.pku.edu.cn/info/1008/1090.htm"
@@ -498,8 +525,17 @@ def testUrl():
     crawler.get_all_pages(url)
 
 if __name__ == "__main__":
+    # 立即执行一次
     main()
-    # testUrl()
+    
+    # 设置每小时执行一次
+    schedule.every().hour.do(main)
+    
+    api_logger.info("已设置每小时定时任务，程序将持续运行...")
+    # 持续运行，等待定时任务
+    while True:
+        schedule.run_pending()
+        time.sleep(60)  # 每分钟检查一次是否有待执行的任务
 
 
     
