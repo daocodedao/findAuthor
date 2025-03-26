@@ -478,15 +478,15 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                                                       value=allUniNames[0] if allUniNames else None)
             
             with gr.Row():
-                university_info = gr.DataFrame(label="大学信息")
+                university_info = gr.DataFrame(label="大学信息", interactive=True)
             
             # 学院展示部分
             with gr.Row():
-                college_info = gr.DataFrame(label="学院信息")
+                college_info = gr.DataFrame(label="学院信息", interactive=True)
             
             # 教师展示部分
             with gr.Row():
-                teacher_info = gr.DataFrame(label="教师信息")
+                teacher_info = gr.DataFrame(label="教师信息", interactive=True)
             
             # 加载大学信息和学院信息
             university_dropdown.change(
@@ -561,8 +561,8 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     )
                 
                 with gr.Column():
-                    add_university_info = gr.DataFrame(label="大学信息")
-                    add_college_info = gr.DataFrame(label="学院信息")
+                    add_university_info = gr.DataFrame(label="大学信息", interactive=True)
+                    add_college_info = gr.DataFrame(label="学院信息", interactive=True)
                     # 在第二个标签页中
                     add_university_dropdown.change(
                         fn=lambda uni_id: (api_logger.info(f"选择大学ID: {uni_id}"), 
@@ -622,7 +622,7 @@ with gr.Blocks(title="大学信息管理系统") as demo:
             
             with gr.Row():
                 # 搜索结果
-                all_teachers_info = gr.DataFrame(label="教师信息")
+                all_teachers_info = gr.DataFrame(label="教师信息", interactive=True)
             
             # 搜索按钮点击事件
             search_button.click(
@@ -673,7 +673,7 @@ with gr.Blocks(title="大学信息管理系统") as demo:
             
             with gr.Row():
                 # 搜索结果
-                authors_info = gr.DataFrame(label="论文作者信息")
+                authors_info = gr.DataFrame(label="论文作者信息", interactive=True)
             
             # 搜索按钮点击事件
             author_search_button.click(
