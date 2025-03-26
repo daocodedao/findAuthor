@@ -119,6 +119,11 @@ class UniversityTeacher(Base):
     def save(session: Session, teacher: 'UniversityTeacher') -> bool:
         """将教师信息保存到数据库"""
         try:
+            
+            if not teacher.name or len(teacher.name) == 0:
+                api_logger.error(f"教师姓名不能为空")
+                return False
+            
             # 检查是否已存在
             existing_teacher = None
             if teacher.id:
