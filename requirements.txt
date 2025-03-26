@@ -7,6 +7,6 @@ openai
 PyPDF2
 schedule
 mysql-connector-python
-crawl4ai
+crawl4ai==0.5.0.post8
 sqlalchemy
 gradio==5.23.0

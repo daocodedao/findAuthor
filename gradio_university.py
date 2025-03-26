@@ -422,4 +422,4 @@ if __name__ == "__main__":
     # 更新下拉框选项
     demo.queue()
     api_logger.info("Gradio界面已启动，等待用户访问...")
-    demo.launch(share=True)
+    demo.launch(share=False, server_port=6610)
