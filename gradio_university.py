@@ -367,42 +367,52 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                 
                 with gr.Column():
                     add_university_info = gr.DataFrame(label="大学信息")
+                    add_college_info = gr.DataFrame(label="学院信息")
                     # 在第二个标签页中
                     add_university_dropdown.change(
                         fn=lambda uni_id: (api_logger.info(f"选择大学ID: {uni_id}"), 
                                          process_university_selection(uni_id))[1],
                         inputs=add_university_dropdown,
-                        outputs=add_university_info
+                        outputs=[add_university_info, add_college_info]
                     )
                 
                     # 添加一个新的辅助函数来处理大学选择
-                    def process_university_selection(university_id):
-                        """处理大学选择，返回大学信息DataFrame"""
-                        if not university_id:
-                            api_logger.warning("未选择大学ID")
-                            return None
+                    def process_university_selection(university_name):
+                        university_df = None
+                        college_df = None
+                        while True:
+                            if not university_name:
+                                api_logger.warning("未选择大学ID")
+                                break
+                            
+                            try:
+                                university_id = getUnivercityIdByName(university_name)
+                            except (ValueError, TypeError) as e:
+                                api_logger.error(f"无法解析大学ID: {university_name}, 错误: {str(e)}")
+                                break
+                            
+                            university = get_university_by_id(university_id)
+                            if university:
+                                university_df = university_to_df([university])
+                            else:
+                                api_logger.warning(f"未找到ID为 {university_name} 的大学")
+                                break
+                            
+                            colleges = get_colleges_by_university(university_id)
+                            api_logger.info(f"获取到大学 {university.name_cn} 的 {len(colleges)} 个学院")
+                            college_df = college_to_df(colleges)
+                            break
                         
-                        try:
-                            university_id = getUnivercityIdByName(university_id)
-                        except (ValueError, TypeError) as e:
-                            api_logger.error(f"无法解析大学ID: {university_id}, 错误: {str(e)}")
-                            return None
-                        
-                        university = get_university_by_id(university_id)
-                        if university:
-                            return university_to_df([university])
-                        else:
-                            api_logger.warning(f"未找到ID为 {university_id} 的大学")
-                            return None
+                        return university_df, college_df                          
 
     # 创建初始化函数，在界面加载时执行
     def init_interface():
         if allUniNames:
             default_uni = allUniNames[0]
             default_uni_info, default_college_info, default_teacher_info = load_university_info(default_uni)
-            default_uni_info_for_add = process_university_selection(default_uni)
-            return default_uni, default_uni_info, default_college_info, default_teacher_info, default_uni, default_uni_info_for_add
-        return None, None, None, None, None, None
+            default_uni_info_for_add, default_colleage_info_for_add = process_university_selection(default_uni)
+            return default_uni, default_uni_info, default_college_info, default_teacher_info, default_uni, default_uni_info_for_add,default_colleage_info_for_add
+        return None, None, None, None, None, None, None
     
     # 添加界面加载事件，自动加载初始数据 - 移动到Blocks内部
     demo.load(
@@ -413,7 +423,8 @@ with gr.Blocks(title="大学信息管理系统") as demo:
             college_info, 
             teacher_info, 
             add_university_dropdown, 
-            add_university_info
+            add_university_info,
+            add_college_info
         ]
     )
 
