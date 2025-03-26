@@ -244,16 +244,16 @@ def delete_teacher(teacher_id: int):
         db_session.rollback()
         return f"删除失败: {str(e)}", None
 
-def add_college(university_id: int, college_name: str, college_url: str):
+def add_college(university_id: int, college_name: str, college_url: str, add_college_info:pd.DataFrame):
     """添加新学院"""
     if not university_id:
-        return "请先选择大学"
+        return "请先选择大学", college_name, college_url, add_college_info
     
     if not college_name:
-        return "学院名称不能为空"
+        return "学院名称不能为空", college_name, college_url, add_college_info
     
     if not college_url:
-        return "学院官网不能为空"
+        return "学院官网不能为空", college_name, college_url, add_college_info
     
     university_id = getUnivercityIdByName(university_id)
     # 创建新学院
@@ -265,9 +265,14 @@ def add_college(university_id: int, college_name: str, college_url: str):
     
     # 保存到数据库
     if UniversityCollege.save(db_session, new_college):
-        return f"学院 '{college_name}' 添加成功"
+        retMgs =  f"学院 '{college_name}' 添加成功"
+    
+        colleges = get_colleges_by_university(university_id)
+        api_logger.info(f"获取到 {len(colleges)} 个学院")
+        college_df = college_to_df(colleges)
+        return retMgs, "", "", college_df
     else:
-        return "学院添加失败"
+        return "学院添加失败", college_name, college_url, add_college_info
 
 # 创建Gradio界面
 # 在现有函数下添加新的搜索教师函数
@@ -554,12 +559,6 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     add_college_button = gr.Button("添加学院")
                     add_college_message = gr.Textbox(label="消息")
                     
-                    add_college_button.click(
-                        fn=add_college,
-                        inputs=[add_university_dropdown, add_college_name, add_college_url],
-                        outputs=add_college_message
-                    )
-                
                 with gr.Column():
                     add_university_info = gr.DataFrame(label="大学信息", interactive=True)
                     add_college_info = gr.DataFrame(label="学院信息", interactive=True)
@@ -572,34 +571,40 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     )
                 
                     # 添加一个新的辅助函数来处理大学选择
-                    def process_university_selection(university_name):
-                        university_df = None
-                        college_df = None
-                        while True:
-                            if not university_name:
-                                api_logger.warning("未选择大学ID")
-                                break
-                            
-                            try:
-                                university_id = getUnivercityIdByName(university_name)
-                            except (ValueError, TypeError) as e:
-                                api_logger.error(f"无法解析大学ID: {university_name}, 错误: {str(e)}")
-                                break
-                            
-                            university = get_university_by_id(university_id)
-                            if university:
-                                university_df = university_to_df([university])
-                            else:
-                                api_logger.warning(f"未找到ID为 {university_name} 的大学")
-                                break
-                            
-                            colleges = get_colleges_by_university(university_id)
-                            api_logger.info(f"获取到大学 {university.name_cn} 的 {len(colleges)} 个学院")
-                            college_df = college_to_df(colleges)
+                def process_university_selection(university_name):
+                    university_df = None
+                    college_df = None
+                    while True:
+                        if not university_name:
+                            api_logger.warning("未选择大学ID")
                             break
                         
-                        return university_df, college_df                          
+                        try:
+                            university_id = getUnivercityIdByName(university_name)
+                        except (ValueError, TypeError) as e:
+                            api_logger.error(f"无法解析大学ID: {university_name}, 错误: {str(e)}")
+                            break
+                        
+                        university = get_university_by_id(university_id)
+                        if university:
+                            university_df = university_to_df([university])
+                        else:
+                            api_logger.warning(f"未找到ID为 {university_name} 的大学")
+                            break
+                        
+                        colleges = get_colleges_by_university(university_id)
+                        api_logger.info(f"获取到大学 {university.name_cn} 的 {len(colleges)} 个学院")
+                        college_df = college_to_df(colleges)
+                        break
+                    
+                    return university_df, college_df                          
 
+                add_college_button.click(
+                    fn=add_college,
+                    inputs=[add_university_dropdown, add_college_name, add_college_url, add_college_info],
+                    outputs=[add_college_message, add_college_name, add_college_url, add_college_info]
+                )
+                
 
         # 添加第三个标签页：教师搜索
         with gr.TabItem("教师搜索"):
