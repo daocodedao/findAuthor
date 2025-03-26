@@ -265,6 +265,92 @@ def add_college(university_id: int, college_name: str, college_url: str):
         return "学院添加失败"
 
 # 创建Gradio界面
+# 在现有函数下添加新的搜索教师函数
+def search_teachers(is_national_fun=None, university_name=None, city=None):
+    """根据条件搜索教师"""
+    api_logger.info(f"搜索教师，条件: 国家基金项目:{is_national_fun}, 大学:{university_name}, 城市:{city}")
+    
+    # 获取所有教师
+    session = db_manager._get_session()
+    
+    # 修改查询，同时获取大学和学院信息
+    query = session.query(
+        UniversityTeacher,
+        ChineseUniversity.name_cn.label('university_name'),
+        ChineseUniversity.website.label('university_website'),
+        ChineseUniversity.city.label('city'),
+        UniversityCollege.college_name.label('college_name')
+    ).join(
+        ChineseUniversity, UniversityTeacher.university_id == ChineseUniversity.id
+    ).outerjoin(
+        # 修改连接条件，使用外键列而不是关系属性
+        UniversityCollege, UniversityTeacher.universities_college_id == UniversityCollege.id
+    )
+    
+    # 应用筛选条件
+    if is_national_fun is not None and is_national_fun != "全部":
+        is_national_fun_bool = (is_national_fun == "是")
+        query = query.filter(UniversityTeacher.is_national_fun == is_national_fun_bool)
+    
+    # 如果指定了大学名称，需要先获取大学ID
+    if university_name and university_name != "全部":
+        try:
+            # 处理格式为 "123:北京大学" 的情况
+            if ":" in university_name:
+                university_id = int(university_name.split(":")[0])
+            else:
+                # 通过名称查找大学
+                university = next((u for u in allUniversities if university_name.lower() in u.name_cn.lower()), None)
+                university_id = university.id if university else None
+            
+            if university_id:
+                query = query.filter(UniversityTeacher.university_id == university_id)
+        except Exception as e:
+            api_logger.error(f"处理大学名称时出错: {str(e)}")
+    
+    # 如果指定了城市，需要通过大学表关联查询
+    if city:
+        query = query.filter(ChineseUniversity.city.like(f"%{city}%"))
+    
+    # 执行查询
+    results = query.all()
+    api_logger.info(f"搜索结果: 找到 {len(results)} 名教师")
+    
+    # 转换为DataFrame，添加额外信息
+    data = []
+    sex_map = {0: "未知", 1: "男", 2: "女"}
+    for result in results:
+        teacher = result[0]  # 教师对象
+        university_name = result[1]  # 大学名称
+        university_website = result[2]  # 大学网址
+        city = result[3]  # 城市
+        college_name = result[4] or "未知"  # 学院名称，可能为None
+        
+        data.append({
+            "ID": teacher.id,
+            "姓名": teacher.name,
+            "性别": sex_map.get(teacher.sex, "未知"),
+            "城市": city,
+            "大学名称": university_name,
+            "大学网址": university_website,
+            "学院名称": college_name,
+            "邮箱": teacher.email or "",
+            "个人主页": teacher.homepage or "",
+            "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
+            "是否计算机相关": "是" if teacher.is_cs else "否",
+            "著作名": teacher.bookname or "",
+            "职称": teacher.title or "",
+            "职位": teacher.job_title or "",
+            "电话": teacher.tel or "",
+            "研究方向": teacher.research_direction or "",
+            "论文": teacher.papers or ""
+        })
+    
+    # 关闭会话
+    session.close()
+    
+    return pd.DataFrame(data)
+
 with gr.Blocks(title="大学信息管理系统") as demo:
     gr.Markdown("# 大学信息管理系统")
     
@@ -405,16 +491,57 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                         
                         return university_df, college_df                          
 
+
+        # 添加第三个标签页：教师搜索
+        with gr.TabItem("教师搜索"):
+            with gr.Row():
+                # 搜索条件
+                is_national_fun_dropdown = gr.Dropdown(
+                    label="是否主持国家基金项目", 
+                    choices=["全部", "是", "否"], 
+                    value="全部"
+                )
+                university_search = gr.Dropdown(
+                    label="大学名称", 
+                    choices=["全部"] + allUniNames, 
+                    value="全部",
+                    allow_custom_value=True,
+                    filterable=True
+                )
+                city_search = gr.Textbox(label="城市")
+                search_button = gr.Button("搜索")
+            
+            with gr.Row():
+                # 搜索结果
+                all_teachers_info = gr.DataFrame(label="教师信息")
+            
+            # 搜索按钮点击事件
+            search_button.click(
+                fn=search_teachers,
+                inputs=[
+                    is_national_fun_dropdown,
+                    university_search,
+                    city_search
+                ],
+                outputs=all_teachers_info
+            )
+            
+            # 初始加载所有教师
+            def load_all_teachers():
+                return search_teachers()
+
+
     # 创建初始化函数，在界面加载时执行
     def init_interface():
         if allUniNames:
             default_uni = allUniNames[0]
             default_uni_info, default_college_info, default_teacher_info = load_university_info(default_uni)
             default_uni_info_for_add, default_colleage_info_for_add = process_university_selection(default_uni)
-            return default_uni, default_uni_info, default_college_info, default_teacher_info, default_uni, default_uni_info_for_add,default_colleage_info_for_add
-        return None, None, None, None, None, None, None
+            all_teachers = load_all_teachers()
+            return default_uni, default_uni_info, default_college_info, default_teacher_info, default_uni, default_uni_info_for_add, default_colleage_info_for_add, all_teachers
+        return None, None, None, None, None, None, None, None
     
-    # 添加界面加载事件，自动加载初始数据 - 移动到Blocks内部
+    # 更新加载事件的输出
     demo.load(
         fn=init_interface,
         outputs=[
@@ -424,7 +551,8 @@ with gr.Blocks(title="大学信息管理系统") as demo:
             teacher_info, 
             add_university_dropdown, 
             add_university_info,
-            add_college_info
+            add_college_info,
+            all_teachers_info
         ]
     )
 

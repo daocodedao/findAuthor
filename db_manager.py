@@ -3,28 +3,27 @@ from sqlalchemy import create_engine, func, desc
 from sqlalchemy.orm import sessionmaker, scoped_session
 import json
 from datetime import datetime
-import os
-from dotenv import load_dotenv
 from model.paper import Paper
 from model.paperAuthor import PaperAuthor
 from model.university import ChineseUniversity
 from utils.logger_settings import api_logger
 
-# 加载.env文件
-load_dotenv()
-
 class DBManager:
     def __init__(self, db_config=None):
-        # 从.env文件读取数据库配置
-        if not db_config:
-            db_config = {
-                'host': os.getenv('DB_HOST', 'localhost'),
-                'user': os.getenv('DB_USER', 'root'),
-                'password': os.getenv('DB_PASSWORD', ''),
-                'database': os.getenv('DB_NAME', 'author_marketing')
-            }
+        # # 默认数据库配置
+        # self.db_config = db_config or {
+        #     'host': 'localhost',
+        #     'user': 'root',
+        #     'password': 'iShehui2021!',
+        #     'database': 'author_marketing'
+        # }
         
-        self.db_config = db_config
+        self.db_config = db_config or {
+            'host': '192.168.21.88',
+            'user': 'root',
+            'password': 'iShehui2021!',
+            'database': 'author_marketing'
+        }
         
         # 创建数据库连接URL
         db_url = f"mysql+mysqlconnector://{self.db_config['user']}:{self.db_config['password']}@{self.db_config['host']}/{self.db_config['database']}"
