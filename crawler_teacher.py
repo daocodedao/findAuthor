@@ -111,21 +111,25 @@ class CollegeWebCrawler:
                 url=url,
                 verbose=False
             )
+            markdown_content = result.markdown
+            # 去掉图片 ![alt](url) 或 ![](url)
+            markdown_content = re.sub(r'!\[.*?\]\(.*?\)', '', markdown_content)
+            # 只保留超链接文本，去掉URL部分 [text](url) -> text
+            markdown_content = re.sub(r'\[(.*?)\]\(.*?\)', r'\1', markdown_content)
+            # 将多个连续的换行符替换为单个换行符
+            markdown_content = re.sub(r'\n{2,}', '\n', markdown_content)
             # print(result.markdown) 
             
             # 构建提示，让OpenAI分析页面内容
             prompt = f"""
-            分析以校网页的内容，如果是某个教师，副教授，教授，研究员，院士介绍的详情页面，提取信息：
-            网页内容：
-            {result.markdown}
-            请以 json 格式返回结果，只返回 json，格式如下，不要做任何解释，
-            ```
+            分析以下 markdown 内容，如果是某个教师，副教授，教授，研究员，院士介绍的详情页面，提取信息：
+            请只返回 json 内容，格式如下，不要输出额外内容，返回的内容要能直接解析为json:
             {{
-                "is_teacher_page": false 如果有多个老师，或者是院系的教师列表页面返回false,
+                "is_teacher_page": "bool 类型。如果有多个老师，或者是院系的教师列表页面返回false”,
                 "name": "教师姓名",
-                "sex": "性别, 0: 未知, 1: 男, 2: 女",
-                "is_national_fun": "是否主持国家基金项目 比如 国家自然基金，国家自然科学基金, 默认 false",
-                "is_cs": "是否是计算机相关教师 默认 false",
+                "sex": "int 类型。性别, 0: 未知, 1: 男, 2: 女",
+                "is_national_fun": "bool 类型。是否主持国家基金项目 比如 国家自然基金，国家自然科学基金, 默认 false",
+                "is_cs": "bool 类型。是否是计算机相关教师 默认 false",
                 "bookname": "出版的图书名称，如《计算机科学导论》等，可以不止一本",
                 "collage_name": "院系名称",
                 "title": "职称 如教授、副教授，讲师，院士等",
@@ -133,21 +137,23 @@ class CollegeWebCrawler:
                 "tel": "联系电话",
                 "email": "电子邮箱， 转换为标准邮箱地址",
                 "research_direction": "研究方向",
-                "papers": "代表性论文"
+                "papers": "代表性论文，有1，2篇就行"
             }}
-            ```
+
+            
+            等待分析 markdown 内容：
+            {markdown_content}
 
             """
             
-            try:
+            try:    
                 # 调用OpenAI API分析内容
                 response = self.openAiClient.chat.completions.create(
                     model="Qwen/Qwen2.5-7B-Instruct",
                     messages=[
                         {"role": "system", "content": "你是一个专业的网页内容分析工具，能够准确提取教师信息。"},
                         {"role": "user", "content": prompt}
-                    ],
-                    temperature=0.2
+                    ]
                 )
                 
                 # 获取分析结果
