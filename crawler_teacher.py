@@ -360,6 +360,7 @@ class CollegeWebCrawler:
                 
         return page_info_list
 
+
     def _extract_content_with_openai(self, soup, url):
         """
         使用OpenAI API来识别网页的主要内容区域
@@ -416,17 +417,52 @@ class CollegeWebCrawler:
     
     def _simplify_html_structure(self, soup, isSaveHtml=False):
         """
-        获取完整的HTML内容，用于发送给OpenAI
+        获取简化的HTML结构，去掉图片、视频等元素，用于发送给OpenAI
         同时保存到本地文件以便查看
         
         Args:
             soup: BeautifulSoup对象
             
         Returns:
-            HTML内容字符串
+            简化后的HTML内容字符串
         """
-        # 直接返回完整的HTML内容
-        html_str = str(soup)
+        # 创建一个新的BeautifulSoup对象，避免修改原始对象
+        soup_copy = BeautifulSoup(str(soup), 'html.parser')
+        
+        # 移除所有图片元素
+        for img in soup_copy.find_all('img'):
+            img.decompose()
+        
+        # 移除所有视频元素
+        for video in soup_copy.find_all('video'):
+            video.decompose()
+        
+        # 移除所有iframe元素（通常用于嵌入视频）
+        for iframe in soup_copy.find_all('iframe'):
+            iframe.decompose()
+            
+        # 移除所有embed元素（用于嵌入多媒体内容）
+        for embed in soup_copy.find_all('embed'):
+            embed.decompose()
+            
+        # 移除所有object元素（用于嵌入多媒体内容）
+        for obj in soup_copy.find_all('object'):
+            obj.decompose()
+            
+        # 移除所有audio元素
+        for audio in soup_copy.find_all('audio'):
+            audio.decompose()
+            
+        # 移除所有canvas元素
+        for canvas in soup_copy.find_all('canvas'):
+            canvas.decompose()
+            
+        # 移除所有svg元素
+        for svg in soup_copy.find_all('svg'):
+            svg.decompose()
+        
+        # 获取简化后的HTML内容
+        html_str = str(soup_copy)
         
         # 保存HTML到本地文件
         try:
