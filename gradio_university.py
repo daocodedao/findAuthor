@@ -148,7 +148,6 @@ def teacher_to_df(teachers: List[UniversityTeacher]) -> pd.DataFrame:
             "职位": teacher.job_title or "",
             "电话": teacher.tel or "",
             "研究方向": teacher.research_direction or "",
-            "论文": teacher.papers or ""
         })
     return pd.DataFrame(data)
 
@@ -341,9 +340,10 @@ def add_college(university_id: int, name: str, website: str, add_college_info:pd
 # 创建Gradio界面
 # 在现有的函数下添加新的搜索教师函数
 # 修改搜索教师函数
-def search_teachers(is_national_fun=None, university_name=None, city=None):
+def search_teachers(is_national_fun=None, university_name=None, city=None, is_pub_book=None, is_pub_book_sciencep=None):
     """根据条件搜索教师"""
-    api_logger.info(f"搜索教师，条件: 国家基金项目:{is_national_fun}, 大学:{university_name}, 城市:{city}")
+    api_logger.info(f"搜索教师，条件: 国家基金项目:{is_national_fun}, 大学:{university_name}, 城市:{city}, "
+                   f"是否出过专著:{is_pub_book}, 是否在科学出版社出过专著:{is_pub_book_sciencep}")
     
     # 获取新的会话
     session = None
@@ -368,6 +368,16 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
         if is_national_fun is not None and is_national_fun != "全部":
             is_national_fun_bool = (is_national_fun == "是")
             query = query.filter(UniversityTeacher.is_national_fun == is_national_fun_bool)
+        
+        # 添加新的筛选条件：是否出过专著
+        if is_pub_book is not None and is_pub_book != "全部":
+            is_pub_book_bool = (is_pub_book == "是")
+            query = query.filter(UniversityTeacher.is_pub_book == is_pub_book_bool)
+            
+        # 添加新的筛选条件：是否在科学出版社出过专著
+        if is_pub_book_sciencep is not None and is_pub_book_sciencep != "全部":
+            is_pub_book_sciencep_bool = (is_pub_book_sciencep == "是")
+            query = query.filter(UniversityTeacher.is_pub_book_sciencep == is_pub_book_sciencep_bool)
         
         # 如果指定了大学名称，需要先获取大学ID
         if university_name and university_name != "全部":
@@ -423,7 +433,6 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
                 "职位": teacher.job_title or "",
                 "电话": teacher.tel or "",
                 "研究方向": teacher.research_direction or "",
-                "论文": teacher.papers or ""
             })
         
         # 关闭会话
@@ -437,14 +446,14 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
         api_logger.error(f"数据库查询出错，已回滚: {str(e)}")
         return pd.DataFrame(columns=["ID", "姓名", "性别", "城市", "大学名称", "大学网址", "学院名称", 
                                     "邮箱", "个人主页", "是否主持国家基金项目", "是否计算机相关", 
-                                    "著作名", "职称", "职位", "电话", "研究方向", "论文"])
+                                    "著作名", "职称", "职位", "电话", "研究方向"])
     except Exception as e:
         if session:
             session.rollback()
         api_logger.error(f"搜索教师时出错，已回滚: {str(e)}")
         return pd.DataFrame(columns=["ID", "姓名", "性别", "城市", "大学名称", "大学网址", "学院名称", 
                                     "邮箱", "个人主页", "是否主持国家基金项目", "是否计算机相关", 
-                                    "著作名", "职称", "职位", "电话", "研究方向", "论文"])
+                                    "著作名", "职称", "职位", "电话", "研究方向"])
     finally:
         if session:
             session.close()
@@ -710,6 +719,19 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     filterable=True
                 )
                 city_search = gr.Textbox(label="城市")
+                
+                # 添加新的搜索条件
+                is_pub_book_dropdown = gr.Dropdown(
+                    label="是否出过专著", 
+                    choices=["全部", "是", "否"], 
+                    value="全部"
+                )
+                is_pub_book_sciencep_dropdown = gr.Dropdown(
+                    label="是否在科学出版社出过专著", 
+                    choices=["全部", "是", "否"], 
+                    value="全部"
+                )
+                
                 search_button = gr.Button("搜索")
             
             with gr.Row():
@@ -722,7 +744,9 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                 inputs=[
                     is_national_fun_dropdown,
                     university_search,
-                    city_search
+                    city_search,
+                    is_pub_book_dropdown,
+                    is_pub_book_sciencep_dropdown
                 ],
                 outputs=all_teachers_info
             )
