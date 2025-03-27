@@ -61,7 +61,7 @@ CREATE TABLE
   `universities_teacher` (
     `id` int NOT NULL AUTO_INCREMENT COMMENT 'ID',
     `university_id` int NOT NULL COMMENT 'chinese_universities id',
-    `universities_college_id` int NOT NULL COMMENT 'universities_college id',
+    `college_id` int NOT NULL COMMENT 'universities_college id',
     `name` varchar(255) COLLATE utf8mb4_general_ci NOT NULL COMMENT '教师姓名',
     `sex` int DEFAULT '0' COMMENT '性别, 0: 未知, 1: 男, 2: 女',
     `email` varchar(255) COLLATE utf8mb4_general_ci DEFAULT NULL COMMENT '电子邮箱',
@@ -77,5 +77,5 @@ CREATE TABLE
     `created_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
     `updated_at` timestamp NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `collage_teacher` (`universities_college_id`, `name`, `email`)
+    UNIQUE KEY `collage_teacher` (`college_id`, `name`, `email`)
   ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_general_ci COMMENT = '大学教师表';

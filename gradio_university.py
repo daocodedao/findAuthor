@@ -360,7 +360,7 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
             ChineseUniversity, UniversityTeacher.university_id == ChineseUniversity.id
         ).outerjoin(
             # 修改连接条件，使用外键列而不是关系属性
-            UniversityCollege, UniversityTeacher.universities_college_id == UniversityCollege.id
+            UniversityCollege, UniversityTeacher.college_id == UniversityCollege.id
         )
         
         # 应用筛选条件

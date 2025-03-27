@@ -11,7 +11,7 @@ class UniversityTeacher(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True, comment='ID')
     university_id = Column(Integer, ForeignKey('chinese_universities.id'), nullable=False, comment='chinese_universities id')
-    universities_college_id = Column(Integer, ForeignKey('universities_college.id'), nullable=False, comment='universities_college id')
+    college_id = Column(Integer, ForeignKey('universities_college.id'), nullable=False, comment='universities_college id')
     name = Column(String(255), nullable=False, comment='教师姓名')
     sex = Column(Integer, default=0, comment='性别, 0: 未知, 1: 男, 2: 女')
     email = Column(String(255), comment='电子邮箱')
@@ -37,7 +37,7 @@ class UniversityTeacher(Base):
         self,
         name: str,
         university_id: int,
-        universities_college_id: int,
+        college_id: int,
         sex: int = 0,
         email: str = None,
         is_national_fun: bool = False,
@@ -57,7 +57,7 @@ class UniversityTeacher(Base):
     ):
         self.id = id
         self.university_id = university_id
-        self.universities_college_id = universities_college_id
+        self.college_id = college_id
         self.name = name
         self.sex = sex
         self.email = email
@@ -81,14 +81,14 @@ class UniversityTeacher(Base):
         return cls(
             id=data.get("id"),
             university_id=data.get("university_id"),
-            universities_college_id=data.get("universities_college_id"),
+            college_id=data.get("college_id"),
             name=data.get("name"),
             sex=data.get("sex", 0),
             email=data.get("email"),
             is_national_fun=data.get("is_national_fun", False),
             is_cs=data.get("is_cs", False),
-            is_cs=data.get("is_pub_book", False),
-            is_cs=data.get("is_pub_book_sciencep", False),
+            is_pub_book=data.get("is_pub_book", False),
+            is_pub_book_sciencep=data.get("is_pub_book_sciencep", False),
             bookname=data.get("bookname"),
             title=data.get("title"),
             job_title=data.get("job_title"),
@@ -105,7 +105,7 @@ class UniversityTeacher(Base):
         return {
             "id": self.id,
             "university_id": self.university_id,
-            "universities_college_id": self.universities_college_id,
+            "college_id": self.college_id,
             "name": self.name,
             "sex": self.sex,
             "email": self.email,
@@ -139,9 +139,9 @@ class UniversityTeacher(Base):
             if teacher.id:
                 existing_teacher = session.query(UniversityTeacher).filter(UniversityTeacher.id == teacher.id).first()
             
-            if not existing_teacher and teacher.universities_college_id and teacher.name and teacher.email:
+            if not existing_teacher and teacher.college_id and teacher.name and teacher.email:
                 existing_teacher = session.query(UniversityTeacher).filter(
-                    UniversityTeacher.universities_college_id == teacher.universities_college_id,
+                    UniversityTeacher.college_id == teacher.college_id,
                     UniversityTeacher.name == teacher.name,
                     UniversityTeacher.email == teacher.email
                 ).first()
@@ -205,7 +205,7 @@ class UniversityTeacher(Base):
         """获取指定学院的所有教师"""
         try:
             teachers = session.query(UniversityTeacher).filter(
-                UniversityTeacher.universities_college_id == college_id
+                UniversityTeacher.college_id == college_id
             ).all()
             return teachers
             

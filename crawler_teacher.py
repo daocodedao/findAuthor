@@ -182,7 +182,7 @@ class CollegeWebCrawler:
                 if self.college and teacher_info and teacher_info.get("is_teacher_page") != False:
                     # 创建教师对象
                     teacher = UniversityTeacher(
-                        universities_college_id=self.college.id,
+                        college_id=self.college.id,
                         university_id=self.college.university_id,
                         name=teacher_info.get("name", ""),
                         sex=int(teacher_info.get("sex", 0)),
