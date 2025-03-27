@@ -515,6 +515,14 @@ def process_teacher_data(data_folder: str) -> Dict:
                         
                         if existing_teacher:
                             api_logger.info(f"教师已存在: {uni_name} - {name}")
+                            existing_teacher.sciencep_bookname = sciencep_bookname
+                            try:
+                                session.commit()
+                                api_logger.info(f"已更新教师本社专著信息: {uni_name} - {name}")
+                            except Exception as e:
+                                session.rollback()
+                                api_logger.error(f"更新教师本社专著信息失败: {uni_name} - {name}, 错误: {e}")
+                        
                             result["saved_teachers"] += 1
                             continue
                         
