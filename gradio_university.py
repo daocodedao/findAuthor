@@ -122,7 +122,8 @@ def college_to_df(colleges: List[UniversityCollege]) -> pd.DataFrame:
         data.append({
             "ID": college.id,
             "学院名称": college.name,
-            "学院官网": college.website or ""
+            "学院官网": college.website or "",
+            "抓取过": college.is_crawl
         })
     return pd.DataFrame(data)
 
