@@ -18,6 +18,7 @@ class UniversityTeacher(Base):
     is_national_fun = Column(Boolean, default=False, comment='是否主持过国家基金项目')
     is_cs = Column(Boolean, default=False, comment='教师是否与计算机相关')
     bookname = Column(String(255), comment='著作名')
+    sciencep_bookname = Column(String(255), comment='科学出版社出版的著作名')
     is_pub_book = Column(Integer, default=0, comment='是否出过专著')
     is_pub_book_sciencep = Column(Integer, default=0, comment='是否在科学出版社出过专著')
     title = Column(String(255), comment='职称')
@@ -45,6 +46,7 @@ class UniversityTeacher(Base):
         is_pub_book: bool = False,
         is_pub_book_sciencep: bool = False,
         bookname: str = None,
+        sciencep_bookname: str = None,
         title: str = None,
         job_title: str = None,
         tel: str = None,
@@ -66,6 +68,7 @@ class UniversityTeacher(Base):
         self.is_pub_book = is_pub_book
         self.is_pub_book_sciencep = is_pub_book_sciencep
         self.bookname = bookname
+        self.sciencep_bookname = sciencep_bookname
         self.title = title
         self.job_title = job_title
         self.tel = tel
@@ -90,6 +93,7 @@ class UniversityTeacher(Base):
             is_pub_book=data.get("is_pub_book", False),
             is_pub_book_sciencep=data.get("is_pub_book_sciencep", False),
             bookname=data.get("bookname"),
+            sciencep_bookname=data.get("sciencep_bookname"),
             title=data.get("title"),
             job_title=data.get("job_title"),
             tel=data.get("tel"),
@@ -114,6 +118,7 @@ class UniversityTeacher(Base):
             "is_pub_book": self.is_pub_book,
             "is_pub_book_sciencep": self.is_pub_book_sciencep,
             "bookname": self.bookname,
+            "sciencep_bookname": self.sciencep_bookname,
             "title": self.title,
             "job_title": self.job_title,
             "tel": self.tel,
@@ -155,6 +160,7 @@ class UniversityTeacher(Base):
                 existing_teacher.is_pub_book = teacher.is_pub_book
                 existing_teacher.is_pub_book_sciencep = teacher.is_pub_book_sciencep
                 existing_teacher.bookname = teacher.bookname
+                existing_teacher.sciencep_bookname = teacher.sciencep_bookname
                 existing_teacher.title = teacher.title
                 existing_teacher.job_title = teacher.job_title
                 existing_teacher.tel = teacher.tel

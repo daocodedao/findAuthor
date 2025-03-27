@@ -131,6 +131,7 @@ class CollegeWebCrawler:
                 "is_national_fun": false, #"bool 类型。是否主持国家基金项目 比如 国家自然基金，国家自然科学基金, 默认 false"
                 "is_cs": false, #"bool 类型。是否是计算机相关教师 默认 false",
                 "bookname": "出版的图书名称，如《计算机科学导论》等，可以不止一本",
+                "sciencep_bookname": "科学出版社出版的图书名称，如《计算机科学导论》等，可以不止一本",
                 "is_pub_book": false "是否出过专著, 默认 false",
                 "is_pub_book_sciencep": false "是否在科学出版社出过专著v",
                 "collage_name": "院系名称",
@@ -192,6 +193,7 @@ class CollegeWebCrawler:
                         is_pub_book=teacher_info.get("is_pub_book", False),
                         is_pub_book_sciencep=teacher_info.get("is_pub_book_sciencep", False),
                         bookname=teacher_info.get("bookname", ""),
+                        sciencep_bookname=teacher_info.get("sciencep_bookname", ""),
                         title=teacher_info.get("title", ""),
                         job_title=teacher_info.get("job_title", ""),
                         tel=teacher_info.get("tel", ""),

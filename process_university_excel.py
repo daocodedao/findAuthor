@@ -504,10 +504,7 @@ def process_teacher_data(data_folder: str) -> Dict:
                             bookname = row["外设出版专著主要信息"]
                         
                         if "本社专著信息" in df.columns and not pd.isna(row["本社专著信息"]):
-                            if bookname:
-                                bookname += "; " + row["本社专著信息"]
-                            else:
-                                bookname = row["本社专著信息"]
+                            sciencep_bookname = row["本社专著信息"]
                         
                         # 检查教师是否已存在
                         existing_teacher = session.query(UniversityTeacher).filter(
@@ -532,7 +529,8 @@ def process_teacher_data(data_folder: str) -> Dict:
                             tel=tel,
                             is_pub_book=is_pub_book,
                             is_pub_book_sciencep=is_pub_book_sciencep,
-                            bookname=bookname
+                            bookname=bookname,
+                            sciencep_bookname=sciencep_bookname
                         )
                         
                         # 保存到数据库
