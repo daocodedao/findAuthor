@@ -1,6 +1,5 @@
 import os
 import pandas as pd
-from sqlalchemy.orm import Session
 from typing import List, Dict, Tuple
 
 import time
@@ -614,6 +613,8 @@ def export_failed_teachers_to_csv(failed_records: List[Dict], output_path: str) 
 def processTeachers():
     """处理教师数据并保存到数据库"""
     data_folder = os.path.join(os.path.dirname(__file__), "data")
+    # data_folder = os.path.join(data_folder, "universities")
+    data_folder = os.path.join(data_folder, "test")
     
     # 处理Excel文件中的教师数据
     api_logger.info("开始处理Excel文件中的教师数据...")
