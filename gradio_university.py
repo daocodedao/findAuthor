@@ -138,12 +138,12 @@ def teacher_to_df(teachers: List[UniversityTeacher]) -> pd.DataFrame:
             "性别": sex_map.get(teacher.sex, "未知"),
             "邮箱": teacher.email or "",
             "个人主页": teacher.homepage or "",
-            "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
-            "是否计算机相关": "是" if teacher.is_cs else "否",
-            "是否出过专著": "是" if teacher.is_pub_book else "否",
-            "是否在科学出版社出过专著": "是" if teacher.is_pub_book_sciencep else "否",
+            "主持国家基金": "是" if teacher.is_national_fun else "否",
+            "计算机相关": "是" if teacher.is_cs else "否",
+            "出过专著": "是" if teacher.is_pub_book else "否",
+            "科学出过专著": "是" if teacher.is_pub_book_sciencep else "否",
             "著作名": teacher.bookname or "",
-            "科学出版社出版的著作": teacher.sciencep_bookname or "",
+            "科学出版的著作": teacher.sciencep_bookname or "",
             "职称": teacher.title or "",
             "职位": teacher.job_title or "",
             "电话": teacher.tel or "",
@@ -359,7 +359,7 @@ def add_college(university_id: int, name: str, website: str, add_college_info:pd
 def search_teachers(is_national_fun=None, university_name=None, city=None, is_pub_book=None, is_pub_book_sciencep=None):
     """根据条件搜索教师"""
     api_logger.info(f"搜索教师，条件: 国家基金项目:{is_national_fun}, 大学:{university_name}, 城市:{city}, "
-                   f"是否出过专著:{is_pub_book}, 是否在科学出版社出过专著:{is_pub_book_sciencep}")
+                   f"出过专著:{is_pub_book}, 科学出过专著:{is_pub_book_sciencep}")
     
     # 获取新的会话
     session = None
@@ -385,12 +385,12 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
             is_national_fun_bool = (is_national_fun == "是")
             query = query.filter(UniversityTeacher.is_national_fun == is_national_fun_bool)
         
-        # 添加新的筛选条件：是否出过专著
+        # 添加新的筛选条件：出过专著
         if is_pub_book is not None and is_pub_book != "全部":
             is_pub_book_bool = (is_pub_book == "是")
             query = query.filter(UniversityTeacher.is_pub_book == is_pub_book_bool)
             
-        # 添加新的筛选条件：是否在科学出版社出过专著
+        # 添加新的筛选条件：科学出过专著
         if is_pub_book_sciencep is not None and is_pub_book_sciencep != "全部":
             is_pub_book_sciencep_bool = (is_pub_book_sciencep == "是")
             query = query.filter(UniversityTeacher.is_pub_book_sciencep == is_pub_book_sciencep_bool)
@@ -435,15 +435,15 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
                 "性别": sex_map.get(teacher.sex, "未知"),
                 "城市": city,
                 "大学名称": university_name,
-                "是否出过专著": "是" if teacher.is_pub_book else "否",
-                "是否在科学出版社出过专著": "是" if teacher.is_pub_book_sciencep else "否",
-                "科学出版社出版的著作": teacher.sciencep_bookname or "",
+                "出过专著": "是" if teacher.is_pub_book else "否",
+                "科学出过专著": "是" if teacher.is_pub_book_sciencep else "否",
+                "科学出版的著作": teacher.sciencep_bookname or "",
                 "大学网址": university_website,
                 "学院名称": name,
                 "邮箱": teacher.email or "",
                 "个人主页": teacher.homepage or "",
-                "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
-                "是否计算机相关": "是" if teacher.is_cs else "否",
+                "主持国家基金": "是" if teacher.is_national_fun else "否",
+                "计算机相关": "是" if teacher.is_cs else "否",
                 "著作名": teacher.bookname or "",
                 "职称": teacher.title or "",
                 "职位": teacher.job_title or "",
@@ -461,14 +461,14 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
             session.rollback()
         api_logger.error(f"数据库查询出错，已回滚: {str(e)}")
         return pd.DataFrame(columns=["ID", "姓名", "性别", "城市", "大学名称", "大学网址", "学院名称", 
-                                    "邮箱", "个人主页", "是否主持国家基金项目", "是否计算机相关", 
+                                    "邮箱", "个人主页", "主持国家基金", "计算机相关", 
                                     "著作名", "职称", "职位", "电话", "研究方向"])
     except Exception as e:
         if session:
             session.rollback()
         api_logger.error(f"搜索教师时出错，已回滚: {str(e)}")
         return pd.DataFrame(columns=["ID", "姓名", "性别", "城市", "大学名称", "大学网址", "学院名称", 
-                                    "邮箱", "个人主页", "是否主持国家基金项目", "是否计算机相关", 
+                                    "邮箱", "个人主页", "主持国家基金", "计算机相关", 
                                     "著作名", "职称", "职位", "电话", "研究方向"])
     finally:
         if session:
@@ -497,7 +497,7 @@ def search_paper_authors(is_china=True, author_positions=None, has_email=False,
         )
         
         # 应用筛选条件
-        # 1. 是否中国作者
+        # 1. 中国作者
         if is_china:
             query = query.filter(
                 (PaperAuthor.country.like('%中国%')) | 
@@ -525,7 +525,7 @@ def search_paper_authors(is_china=True, author_positions=None, has_email=False,
                 from sqlalchemy import or_
                 query = query.filter(or_(*position_filters))
         
-        # 3. 是否有邮箱
+        # 3. 有邮箱
         if has_email:
             query = query.filter(PaperAuthor.email != None)
             query = query.filter(PaperAuthor.email != '')
@@ -761,7 +761,7 @@ with gr.Blocks(title="大学信息管理系统") as demo:
             with gr.Row():
                 # 搜索条件
                 is_national_fun_dropdown = gr.Dropdown(
-                    label="是否主持国家基金项目", 
+                    label="主持国家基金", 
                     choices=["全部", "是", "否"], 
                     value="全部"
                 )
@@ -776,12 +776,12 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                 
                 # 添加新的搜索条件
                 is_pub_book_dropdown = gr.Dropdown(
-                    label="是否出过专著", 
+                    label="出过专著", 
                     choices=["全部", "是", "否"], 
                     value="全部"
                 )
                 is_pub_book_sciencep_dropdown = gr.Dropdown(
-                    label="是否在科学出版社出过专著", 
+                    label="科学出过专著", 
                     choices=["全部", "是", "否"], 
                     value="全部"
                 )
@@ -815,7 +815,7 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                 # 搜索条件
                 with gr.Column(scale=1):
                     is_china_checkbox = gr.Checkbox(
-                        label="是否中国作者", 
+                        label="中国作者", 
                         value=True
                     )
                     author_position = gr.CheckboxGroup(
@@ -824,7 +824,7 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                         value=["通讯作者", "第一作者", "其他作者"]
                     )
                     has_email_checkbox = gr.Checkbox(
-                        label="是否有邮箱", 
+                        label="有邮箱", 
                         value=False
                     )
                     affiliation_search = gr.Textbox(
