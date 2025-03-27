@@ -104,7 +104,6 @@ def university_to_df(universities: List[ChineseUniversity]) -> pd.DataFrame:
         data.append({
             "ID": uni.id,
             "中文名称": uni.name_cn,
-            "英文名称": uni.name_en,
             "官网": uni.website,
             "城市": uni.city,
             "985": "是" if uni.is_985 else "否",
@@ -113,7 +112,7 @@ def university_to_df(universities: List[ChineseUniversity]) -> pd.DataFrame:
     # 如果没有有效数据，返回空DataFrame
     if not data:
         api_logger.warning("university_to_df 没有有效数据，返回空DataFrame")
-        return pd.DataFrame(columns=["ID", "中文名称", "英文名称", "官网", "城市", "985", "211"])
+        return pd.DataFrame(columns=["ID", "中文名称", "官网", "城市", "985", "211"])
     return pd.DataFrame(data)
 
 def college_to_df(colleges: List[UniversityCollege]) -> pd.DataFrame:
@@ -643,7 +642,6 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                         {"visible": True},
                         int(row["ID"]),
                         row["中文名称"],
-                        row["英文名称"],
                         row["官网"],
                         row["城市"],
                         row["985"] == "是",
