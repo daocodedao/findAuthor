@@ -513,14 +513,14 @@ def main():
         api_logger.info(f"获取到 {len(colleges)} 个有网址的学院")
         # 遍历所有学院
         for college in colleges:
-            if not college.college_url:
-                api_logger.error(f"{college.university_name}:{college.college_name} 没有网址，跳过")
+            if not college.website:
+                api_logger.error(f"{college.university_name}:{college.name} 没有网址，跳过")
                 continue
             if college.is_crawl:
-                api_logger.info(f"{college.university_name}:{college.college_name} 已爬取过，跳过")
+                api_logger.info(f"{college.university_name}:{college.name} 已爬取过，跳过")
                 continue
                 
-            api_logger.info(f"开始爬取: {college.university_name}:{college.college_name}, URL: {college.college_url}")
+            api_logger.info(f"开始爬取: {college.university_name}:{college.name}, URL: {college.website}")
             
             # 创建爬虫实例
             crawler = CollegeWebCrawler(
@@ -534,13 +534,13 @@ def main():
             
             # 开始爬取
             try:
-                crawler.get_all_pages(college.college_url)
-                api_logger.info(f"完成爬取: {college.university_name}:{college.college_name}")
+                crawler.get_all_pages(college.website)
+                api_logger.info(f"完成爬取: {college.university_name}:{college.name}")
                 college.is_crawl = True
                 UniversityCollege.save(db_session, college)
                 
             except Exception as e:
-                api_logger.error(f"爬取 {college.university_name}:{college.college_name} 出错: {e}")
+                api_logger.error(f"爬取 {college.university_name}:{college.name} 出错: {e}")
             
             # 等待一段时间再爬取下一个学院，避免请求过于频繁
             time.sleep(5)

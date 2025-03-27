@@ -37,7 +37,7 @@ logging_config = dict(
     },
     loggers={
         'api_logger': {
-            'handlers': ['api-logger'],
+            'handlers': ['api-logger', 'console'],
             'level': logging.DEBUG
         },
         'batch_process_logger': {

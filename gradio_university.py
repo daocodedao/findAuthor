@@ -122,8 +122,8 @@ def college_to_df(colleges: List[UniversityCollege]) -> pd.DataFrame:
     for college in colleges:
         data.append({
             "ID": college.id,
-            "学院名称": college.college_name,
-            "学院官网": college.college_url or ""
+            "学院名称": college.name,
+            "学院官网": college.website or ""
         })
     return pd.DataFrame(data)
 
@@ -289,16 +289,16 @@ def delete_teacher(teacher_id: int):
         if session:
             session.close()
 
-def add_college(university_id: int, college_name: str, college_url: str, add_college_info:pd.DataFrame):
+def add_college(university_id: int, name: str, website: str, add_college_info:pd.DataFrame):
     """添加新学院"""
     if not university_id:
-        return "请先选择大学", college_name, college_url, add_college_info
+        return "请先选择大学", name, website, add_college_info
     
-    if not college_name:
-        return "学院名称不能为空", college_name, college_url, add_college_info
+    if not name:
+        return "学院名称不能为空", name, website, add_college_info
     
-    if not college_url:
-        return "学院官网不能为空", college_name, college_url, add_college_info
+    if not website:
+        return "学院官网不能为空", name, website, add_college_info
     
     session = None
     try:
@@ -307,15 +307,15 @@ def add_college(university_id: int, college_name: str, college_url: str, add_col
         # 创建新学院
         new_college = UniversityCollege(
             university_id=university_id,
-            college_name=college_name,
-            college_url=college_url
+            name=name,
+            website=website
         )
         
         # 保存到数据库
         session.add(new_college)
         session.commit()
         
-        retMgs = f"学院 '{college_name}' 添加成功"
+        retMgs = f"学院 '{name}' 添加成功"
         
         colleges = get_colleges_by_university(university_id)
         api_logger.info(f"获取到 {len(colleges)} 个学院")
@@ -325,12 +325,12 @@ def add_college(university_id: int, college_name: str, college_url: str, add_col
         if session:
             session.rollback()
         api_logger.error(f"数据库添加出错，已回滚: {str(e)}")
-        return f"学院添加失败: {str(e)}", college_name, college_url, add_college_info
+        return f"学院添加失败: {str(e)}", name, website, add_college_info
     except Exception as e:
         if session:
             session.rollback()
         api_logger.error(f"添加学院时出错，已回滚: {str(e)}")
-        return f"学院添加失败: {str(e)}", college_name, college_url, add_college_info
+        return f"学院添加失败: {str(e)}", name, website, add_college_info
     finally:
         if session:
             session.close()
@@ -353,7 +353,7 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
             ChineseUniversity.name_cn.label('university_name'),
             ChineseUniversity.website.label('university_website'),
             ChineseUniversity.city.label('city'),
-            UniversityCollege.college_name.label('college_name')
+            UniversityCollege.name.label('name')
         ).join(
             ChineseUniversity, UniversityTeacher.university_id == ChineseUniversity.id
         ).outerjoin(
@@ -398,7 +398,7 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
             university_name = result[1]  # 大学名称
             university_website = result[2]  # 大学网址
             city = result[3]  # 城市
-            college_name = result[4] or "未知"  # 学院名称，可能为None
+            name = result[4] or "未知"  # 学院名称，可能为None
             
             data.append({
                 "ID": teacher.id,
@@ -407,7 +407,7 @@ def search_teachers(is_national_fun=None, university_name=None, city=None):
                 "城市": city,
                 "大学名称": university_name,
                 "大学网址": university_website,
-                "学院名称": college_name,
+                "学院名称": name,
                 "邮箱": teacher.email or "",
                 "个人主页": teacher.homepage or "",
                 "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
@@ -635,8 +635,8 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                                                           filterable=True,
                                                           value=allUniNames[0] if allUniNames else None)  # 添加默认值
                     
-                    add_college_name = gr.Textbox(label="学院名称")
-                    add_college_url = gr.Textbox(label="学院官网")
+                    add_name = gr.Textbox(label="学院名称")
+                    add_website = gr.Textbox(label="学院官网")
                     add_college_button = gr.Button("添加学院")
                     add_college_message = gr.Textbox(label="消息")
                     
@@ -682,8 +682,8 @@ with gr.Blocks(title="大学信息管理系统") as demo:
 
                 add_college_button.click(
                     fn=add_college,
-                    inputs=[add_university_dropdown, add_college_name, add_college_url, add_college_info],
-                    outputs=[add_college_message, add_college_name, add_college_url, add_college_info]
+                    inputs=[add_university_dropdown, add_name, add_website, add_college_info],
+                    outputs=[add_college_message, add_name, add_website, add_college_info]
                 )
                 
 

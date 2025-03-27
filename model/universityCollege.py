@@ -12,8 +12,8 @@ class UniversityCollege(Base):
     
     id = Column(Integer, primary_key=True, autoincrement=True)
     university_id = Column(Integer, ForeignKey('chinese_universities.id'), nullable=False, comment='chinese_universities id')
-    college_name = Column(String(100), nullable=False, comment='学院名')
-    college_url = Column(String(255), comment='学院官网')
+    name = Column(String(100), nullable=False, comment='学院名')
+    website = Column(String(255), comment='学院官网')
     is_crawl = Column(Integer, default=0, comment='是否爬取过')
     created_at = Column(DateTime, default=datetime.now)
     updated_at = Column(DateTime, default=datetime.now, onupdate=datetime.now)
@@ -27,16 +27,16 @@ class UniversityCollege(Base):
     def __init__(
         self,
         university_id: int,
-        college_name: str,
-        college_url: str = None,
+        name: str,
+        website: str = None,
         id: Optional[int] = None,
         created_at: Optional[datetime] = None,
         updated_at: Optional[datetime] = None
     ):
         self.id = id
         self.university_id = university_id
-        self.college_name = college_name
-        self.college_url = college_url
+        self.name = name
+        self.website = website
         self.created_at = created_at or datetime.now()
         self.updated_at = updated_at or datetime.now()
         self.is_crawl = False
@@ -47,8 +47,8 @@ class UniversityCollege(Base):
         return cls(
             id=data.get("id"),
             university_id=data.get("university_id"),
-            college_name=data.get("college_name"),
-            college_url=data.get("college_url"),
+            name=data.get("name"),
+            website=data.get("website"),
             created_at=data.get("created_at"),
             updated_at=data.get("updated_at")
         )
@@ -58,8 +58,8 @@ class UniversityCollege(Base):
         return {
             "id": self.id,
             "university_id": self.university_id,
-            "college_name": self.college_name,
-            "college_url": self.college_url,
+            "name": self.name,
+            "website": self.website,
             "created_at": self.created_at,
             "updated_at": self.updated_at
         }
@@ -76,15 +76,15 @@ class UniversityCollege(Base):
                     UniversityCollege.id == college.id
                 ).first()
             
-            if not existing_college and college.university_id and college.college_name:
+            if not existing_college and college.university_id and college.name:
                 existing_college = session.query(UniversityCollege).filter(
                     UniversityCollege.university_id == college.university_id,
-                    UniversityCollege.college_name == college.college_name
+                    UniversityCollege.name == college.name
                 ).first()
             
             if existing_college:
                 # 更新现有记录
-                existing_college.college_url = college.college_url
+                existing_college.website = college.website
                 existing_college.updated_at = datetime.now()
             else:
                 # 添加新记录
@@ -162,7 +162,7 @@ class UniversityCollege(Base):
             # 使用连表查询获取学院和对应大学信息
             results = session.query(UniversityCollege, ChineseUniversity.name_cn)\
                 .join(ChineseUniversity, UniversityCollege.university_id == ChineseUniversity.id)\
-                .filter(UniversityCollege.college_name.like(f"%{name}%"))\
+                .filter(UniversityCollege.name.like(f"%{name}%"))\
                 .all()
             
             colleges = []

@@ -12,3 +12,4 @@ coinHandleRightNow.txt
 .vscode/
 cache/
 .env
+data/
