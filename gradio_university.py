@@ -13,6 +13,7 @@ from model.paper import Paper
 from model.paperAuthor import PaperAuthor
 # 添加 desc 导入
 from sqlalchemy import desc
+from sqlalchemy.exc import SQLAlchemyError
         
 # 设置更详细的日志格式
 api_logger.info("启动大学信息管理系统")
@@ -20,6 +21,26 @@ api_logger.info("启动大学信息管理系统")
 db_manager = DBManager()
 db_session = db_manager._get_session()
 api_logger.info("数据库会话已创建")
+
+# 添加一个辅助函数来确保数据库会话的安全使用
+def safe_db_operation(func):
+    """装饰器，确保数据库操作安全执行，出错时自动回滚"""
+    def wrapper(*args, **kwargs):
+        session = db_manager._get_session()
+        try:
+            result = func(*args, **kwargs, session=session)
+            return result
+        except SQLAlchemyError as e:
+            session.rollback()
+            api_logger.error(f"数据库操作出错，已回滚: {str(e)}")
+            return None
+        except Exception as e:
+            session.rollback()
+            api_logger.error(f"操作出错，已回滚: {str(e)}")
+            return None
+        finally:
+            session.close()
+    return wrapper
 
 def getUnivercityIdByName(uniName):
     """根据中文名称获取大学ID"""
@@ -203,8 +224,10 @@ def edit_teacher(teacher_id: int, name: str, sex: int, email: str, is_national_f
     if not teacher_id:
         return "请先选择教师", None
     
+    session = None
     try:
-        teacher = db_session.query(UniversityTeacher).filter(UniversityTeacher.id == teacher_id).first()
+        session = db_manager._get_session()
+        teacher = session.query(UniversityTeacher).filter(UniversityTeacher.id == teacher_id).first()
         if not teacher:
             return "未找到该教师", None
         
@@ -221,28 +244,50 @@ def edit_teacher(teacher_id: int, name: str, sex: int, email: str, is_national_f
         teacher.research_direction = research_direction
         teacher.papers = papers
         
-        db_session.commit()
+        session.commit()
         return "教师信息更新成功", teacher_to_df([teacher])
-    except Exception as e:
-        db_session.rollback()
+    except SQLAlchemyError as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"数据库更新出错，已回滚: {str(e)}")
         return f"更新失败: {str(e)}", None
+    except Exception as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"更新教师信息时出错，已回滚: {str(e)}")
+        return f"更新失败: {str(e)}", None
+    finally:
+        if session:
+            session.close()
 
 def delete_teacher(teacher_id: int):
     """删除教师"""
     if not teacher_id:
         return "请先选择教师", None
     
+    session = None
     try:
-        teacher = db_session.query(UniversityTeacher).filter(UniversityTeacher.id == teacher_id).first()
+        session = db_manager._get_session()
+        teacher = session.query(UniversityTeacher).filter(UniversityTeacher.id == teacher_id).first()
         if teacher:
-            db_session.delete(teacher)
-            db_session.commit()
+            session.delete(teacher)
+            session.commit()
             return "教师删除成功", None
         else:
             return "未找到该教师", None
-    except Exception as e:
-        db_session.rollback()
+    except SQLAlchemyError as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"数据库删除出错，已回滚: {str(e)}")
         return f"删除失败: {str(e)}", None
+    except Exception as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"删除教师时出错，已回滚: {str(e)}")
+        return f"删除失败: {str(e)}", None
+    finally:
+        if session:
+            session.close()
 
 def add_college(university_id: int, college_name: str, college_url: str, add_college_info:pd.DataFrame):
     """添加新学院"""
@@ -255,113 +300,148 @@ def add_college(university_id: int, college_name: str, college_url: str, add_col
     if not college_url:
         return "学院官网不能为空", college_name, college_url, add_college_info
     
-    university_id = getUnivercityIdByName(university_id)
-    # 创建新学院
-    new_college = UniversityCollege(
-        university_id=university_id,
-        college_name=college_name,
-        college_url=college_url
-    )
-    
-    # 保存到数据库
-    if UniversityCollege.save(db_session, new_college):
-        retMgs =  f"学院 '{college_name}' 添加成功"
-    
+    session = None
+    try:
+        session = db_manager._get_session()
+        university_id = getUnivercityIdByName(university_id)
+        # 创建新学院
+        new_college = UniversityCollege(
+            university_id=university_id,
+            college_name=college_name,
+            college_url=college_url
+        )
+        
+        # 保存到数据库
+        session.add(new_college)
+        session.commit()
+        
+        retMgs = f"学院 '{college_name}' 添加成功"
+        
         colleges = get_colleges_by_university(university_id)
         api_logger.info(f"获取到 {len(colleges)} 个学院")
         college_df = college_to_df(colleges)
         return retMgs, "", "", college_df
-    else:
-        return "学院添加失败", college_name, college_url, add_college_info
+    except SQLAlchemyError as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"数据库添加出错，已回滚: {str(e)}")
+        return f"学院添加失败: {str(e)}", college_name, college_url, add_college_info
+    except Exception as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"添加学院时出错，已回滚: {str(e)}")
+        return f"学院添加失败: {str(e)}", college_name, college_url, add_college_info
+    finally:
+        if session:
+            session.close()
 
 # 创建Gradio界面
-# 在现有函数下添加新的搜索教师函数
+# 在现有的函数下添加新的搜索教师函数
+# 修改搜索教师函数
 def search_teachers(is_national_fun=None, university_name=None, city=None):
     """根据条件搜索教师"""
     api_logger.info(f"搜索教师，条件: 国家基金项目:{is_national_fun}, 大学:{university_name}, 城市:{city}")
     
-    # 获取所有教师
-    session = db_manager._get_session()
-    
-    # 修改查询，同时获取大学和学院信息
-    query = session.query(
-        UniversityTeacher,
-        ChineseUniversity.name_cn.label('university_name'),
-        ChineseUniversity.website.label('university_website'),
-        ChineseUniversity.city.label('city'),
-        UniversityCollege.college_name.label('college_name')
-    ).join(
-        ChineseUniversity, UniversityTeacher.university_id == ChineseUniversity.id
-    ).outerjoin(
-        # 修改连接条件，使用外键列而不是关系属性
-        UniversityCollege, UniversityTeacher.universities_college_id == UniversityCollege.id
-    )
-    
-    # 应用筛选条件
-    if is_national_fun is not None and is_national_fun != "全部":
-        is_national_fun_bool = (is_national_fun == "是")
-        query = query.filter(UniversityTeacher.is_national_fun == is_national_fun_bool)
-    
-    # 如果指定了大学名称，需要先获取大学ID
-    if university_name and university_name != "全部":
-        try:
-            # 处理格式为 "123:北京大学" 的情况
-            if ":" in university_name:
-                university_id = int(university_name.split(":")[0])
-            else:
-                # 通过名称查找大学
-                university = next((u for u in allUniversities if university_name.lower() in u.name_cn.lower()), None)
-                university_id = university.id if university else None
-            
-            if university_id:
-                query = query.filter(UniversityTeacher.university_id == university_id)
-        except Exception as e:
-            api_logger.error(f"处理大学名称时出错: {str(e)}")
-    
-    # 如果指定了城市，需要通过大学表关联查询
-    if city:
-        query = query.filter(ChineseUniversity.city.like(f"%{city}%"))
-    
-    # 执行查询
-    results = query.all()
-    api_logger.info(f"搜索结果: 找到 {len(results)} 名教师")
-    
-    # 转换为DataFrame，添加额外信息
-    data = []
-    sex_map = {0: "未知", 1: "男", 2: "女"}
-    for result in results:
-        teacher = result[0]  # 教师对象
-        university_name = result[1]  # 大学名称
-        university_website = result[2]  # 大学网址
-        city = result[3]  # 城市
-        college_name = result[4] or "未知"  # 学院名称，可能为None
+    # 获取新的会话
+    session = None
+    try:
+        session = db_manager._get_session()
         
-        data.append({
-            "ID": teacher.id,
-            "姓名": teacher.name,
-            "性别": sex_map.get(teacher.sex, "未知"),
-            "城市": city,
-            "大学名称": university_name,
-            "大学网址": university_website,
-            "学院名称": college_name,
-            "邮箱": teacher.email or "",
-            "个人主页": teacher.homepage or "",
-            "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
-            "是否计算机相关": "是" if teacher.is_cs else "否",
-            "著作名": teacher.bookname or "",
-            "职称": teacher.title or "",
-            "职位": teacher.job_title or "",
-            "电话": teacher.tel or "",
-            "研究方向": teacher.research_direction or "",
-            "论文": teacher.papers or ""
-        })
+        # 修改查询，同时获取大学和学院信息
+        query = session.query(
+            UniversityTeacher,
+            ChineseUniversity.name_cn.label('university_name'),
+            ChineseUniversity.website.label('university_website'),
+            ChineseUniversity.city.label('city'),
+            UniversityCollege.college_name.label('college_name')
+        ).join(
+            ChineseUniversity, UniversityTeacher.university_id == ChineseUniversity.id
+        ).outerjoin(
+            # 修改连接条件，使用外键列而不是关系属性
+            UniversityCollege, UniversityTeacher.universities_college_id == UniversityCollege.id
+        )
+        
+        # 应用筛选条件
+        if is_national_fun is not None and is_national_fun != "全部":
+            is_national_fun_bool = (is_national_fun == "是")
+            query = query.filter(UniversityTeacher.is_national_fun == is_national_fun_bool)
+        
+        # 如果指定了大学名称，需要先获取大学ID
+        if university_name and university_name != "全部":
+            try:
+                # 处理格式为 "123:北京大学" 的情况
+                if ":" in university_name:
+                    university_id = int(university_name.split(":")[0])
+                else:
+                    # 通过名称查找大学
+                    university = next((u for u in allUniversities if university_name.lower() in u.name_cn.lower()), None)
+                    university_id = university.id if university else None
+                
+                if university_id:
+                    query = query.filter(UniversityTeacher.university_id == university_id)
+            except Exception as e:
+                api_logger.error(f"处理大学名称时出错: {str(e)}")
+        
+        # 如果指定了城市，需要通过大学表关联查询
+        if city:
+            query = query.filter(ChineseUniversity.city.like(f"%{city}%"))
+        
+        # 执行查询
+        results = query.all()
+        api_logger.info(f"搜索结果: 找到 {len(results)} 名教师")
+        
+        # 转换为DataFrame，添加额外信息
+        data = []
+        sex_map = {0: "未知", 1: "男", 2: "女"}
+        for result in results:
+            teacher = result[0]  # 教师对象
+            university_name = result[1]  # 大学名称
+            university_website = result[2]  # 大学网址
+            city = result[3]  # 城市
+            college_name = result[4] or "未知"  # 学院名称，可能为None
+            
+            data.append({
+                "ID": teacher.id,
+                "姓名": teacher.name,
+                "性别": sex_map.get(teacher.sex, "未知"),
+                "城市": city,
+                "大学名称": university_name,
+                "大学网址": university_website,
+                "学院名称": college_name,
+                "邮箱": teacher.email or "",
+                "个人主页": teacher.homepage or "",
+                "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
+                "是否计算机相关": "是" if teacher.is_cs else "否",
+                "著作名": teacher.bookname or "",
+                "职称": teacher.title or "",
+                "职位": teacher.job_title or "",
+                "电话": teacher.tel or "",
+                "研究方向": teacher.research_direction or "",
+                "论文": teacher.papers or ""
+            })
+        
+        # 关闭会话
+        session.close()
+        
+        return pd.DataFrame(data)
     
-    # 关闭会话
-    session.close()
-    
-    return pd.DataFrame(data)
-
-# 在文件中添加新的搜索函数
+    except SQLAlchemyError as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"数据库查询出错，已回滚: {str(e)}")
+        return pd.DataFrame(columns=["ID", "姓名", "性别", "城市", "大学名称", "大学网址", "学院名称", 
+                                    "邮箱", "个人主页", "是否主持国家基金项目", "是否计算机相关", 
+                                    "著作名", "职称", "职位", "电话", "研究方向", "论文"])
+    except Exception as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"搜索教师时出错，已回滚: {str(e)}")
+        return pd.DataFrame(columns=["ID", "姓名", "性别", "城市", "大学名称", "大学网址", "学院名称", 
+                                    "邮箱", "个人主页", "是否主持国家基金项目", "是否计算机相关", 
+                                    "著作名", "职称", "职位", "电话", "研究方向", "论文"])
+    finally:
+        if session:
+            session.close()
 
 def search_paper_authors(is_china=True, author_positions=None, has_email=False, 
                          affiliation=None, paper_title=None, research_direction=None):
@@ -369,10 +449,11 @@ def search_paper_authors(is_china=True, author_positions=None, has_email=False,
     api_logger.info(f"搜索论文作者，条件: 中国作者:{is_china}, 作者类型:{author_positions}, "
                    f"有邮箱:{has_email}, 机构:{affiliation}, 标题:{paper_title}, 研究方向:{research_direction}")
     
-    # 获取会话
-    session = db_manager._get_session()
-    
+    # 获取新的会话
+    session = None
     try:
+        session = db_manager._get_session()
+        
         # 构建基本查询
         query = session.query(
             PaperAuthor,
