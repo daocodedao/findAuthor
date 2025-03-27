@@ -140,6 +140,8 @@ def teacher_to_df(teachers: List[UniversityTeacher]) -> pd.DataFrame:
             "个人主页": teacher.homepage or "",
             "是否主持国家基金项目": "是" if teacher.is_national_fun else "否",
             "是否计算机相关": "是" if teacher.is_cs else "否",
+            "是否出过专著": "是" if teacher.is_pub_book else "否",
+            "是否在科学出版社出过专著": "是" if teacher.is_pub_book_sciencep else "否",
             "著作名": teacher.bookname or "",
             "职称": teacher.title or "",
             "职位": teacher.job_title or "",

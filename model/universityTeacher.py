@@ -18,6 +18,8 @@ class UniversityTeacher(Base):
     is_national_fun = Column(Boolean, default=False, comment='是否主持过国家基金项目')
     is_cs = Column(Boolean, default=False, comment='教师是否与计算机相关')
     bookname = Column(String(255), comment='著作名')
+    is_pub_book = Column(Integer, default=0, comment='是否出过专著')
+    is_pub_book_sciencep = Column(Integer, default=0, comment='是否在科学出版社出过专著')
     title = Column(String(255), comment='职称')
     job_title = Column(String(255), comment='职位')
     tel = Column(String(255), comment='电话')
@@ -40,6 +42,8 @@ class UniversityTeacher(Base):
         email: str = None,
         is_national_fun: bool = False,
         is_cs: bool = False,
+        is_pub_book: bool = False,
+        is_pub_book_sciencep: bool = False,
         bookname: str = None,
         title: str = None,
         job_title: str = None,
@@ -59,6 +63,8 @@ class UniversityTeacher(Base):
         self.email = email
         self.is_national_fun = is_national_fun
         self.is_cs = is_cs
+        self.is_pub_book = is_pub_book
+        self.is_pub_book_sciencep = is_pub_book_sciencep
         self.bookname = bookname
         self.title = title
         self.job_title = job_title
@@ -81,6 +87,8 @@ class UniversityTeacher(Base):
             email=data.get("email"),
             is_national_fun=data.get("is_national_fun", False),
             is_cs=data.get("is_cs", False),
+            is_cs=data.get("is_pub_book", False),
+            is_cs=data.get("is_pub_book_sciencep", False),
             bookname=data.get("bookname"),
             title=data.get("title"),
             job_title=data.get("job_title"),
@@ -103,6 +111,8 @@ class UniversityTeacher(Base):
             "email": self.email,
             "is_national_fun": self.is_national_fun,
             "is_cs": self.is_cs,
+            "is_pub_book": self.is_pub_book,
+            "is_pub_book_sciencep": self.is_pub_book_sciencep,
             "bookname": self.bookname,
             "title": self.title,
             "job_title": self.job_title,
@@ -142,6 +152,8 @@ class UniversityTeacher(Base):
                 existing_teacher.sex = teacher.sex
                 existing_teacher.is_national_fun = teacher.is_national_fun
                 existing_teacher.is_cs = teacher.is_cs
+                existing_teacher.is_pub_book = teacher.is_pub_book
+                existing_teacher.is_pub_book_sciencep = teacher.is_pub_book_sciencep
                 existing_teacher.bookname = teacher.bookname
                 existing_teacher.title = teacher.title
                 existing_teacher.job_title = teacher.job_title
