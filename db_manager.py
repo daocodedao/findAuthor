@@ -142,14 +142,8 @@ class DBManager:
                 return False
                 
             # 然后保存每个作者信息
-            # authors = []
-            # for author_data in paper.author_info:
-            #     # 创建 PaperAuthor 对象
-            #     author = PaperAuthor.from_dict({
-            #         "paper_id": paper.paper_id,
-            #         **author_data
-            #     })
-            #     authors.append(author)
+            for author in paper.authors:
+                author.nsfc = paper.nsfc
             
             # 批量保存作者信息
             return PaperAuthor.save_multiple(session, paper.authors)

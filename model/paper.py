@@ -24,6 +24,7 @@ class Paper(Base):
     main_content = Column(Text)
     has_chinese_author = Column(Boolean, default=False)
     has_chinese_email = Column(Boolean, default=False)
+    nsfc = Column(Boolean, default=False, comment='国家自然科学基金是否资助')
     processed_date = Column(DateTime, default=datetime.now)
     
     authors:List[PaperAuthor] = []
@@ -41,6 +42,7 @@ class Paper(Base):
         main_content: str = "",
         has_chinese_author: bool = False,
         has_chinese_email: bool = False,
+        nsfc: bool = False,
         processed_date: Optional[datetime] = None
     ):
         self.paper_id = paper_id
@@ -66,6 +68,7 @@ class Paper(Base):
         self.main_content = main_content
         self.has_chinese_author = has_chinese_author
         self.has_chinese_email = has_chinese_email
+        self.nsfc = nsfc
         self.processed_date = processed_date or datetime.now()
     
     def set_categories(self, categories_list: List[str]):
@@ -96,6 +99,7 @@ class Paper(Base):
             main_content=data.get("主要内容", "") or data.get("main_content", ""),
             has_chinese_author=data.get("是否有中国作者", False) or data.get("has_chinese_author", False),
             has_chinese_email=data.get("是否有中国作者邮箱", False) or data.get("has_chinese_email", False),
+            nsfc=data.get("国家自然科学基金(nsfc)是否资助", False) or data.get("nsfc", False),
             processed_date=data.get("processed_date")
         )
         
@@ -128,6 +132,7 @@ class Paper(Base):
             "主要内容": self.main_content,
             "是否有中国作者": self.has_chinese_author,
             "是否有中国作者邮箱": self.has_chinese_email,
+            "国家自然科学基金(nsfc)是否资助": self.nsfc,
             "processed_date": self.processed_date
         }
     
@@ -151,6 +156,7 @@ class Paper(Base):
                 existing_paper.main_content = paper.main_content
                 existing_paper.has_chinese_author = paper.has_chinese_author
                 existing_paper.has_chinese_email = paper.has_chinese_email
+                existing_paper.nsfc = paper.nsfc
                 existing_paper.processed_date = datetime.now()
             else:
                 # 添加新记录

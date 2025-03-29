@@ -9,40 +9,19 @@
 import os
 import sys
 import time
-import logging
 import datetime
 import PyPDF2
 import schedule
-import json
 from pathlib import Path
 from utils.logger_settings import api_logger
-
-
 
 # 基础目录
 BASE_DIR = Path(__file__).parent
 PDF_DIR = BASE_DIR / "cache" / "pdf"
-PROCESSED_FILES_PATH = BASE_DIR / "processed_nsfc_files.json"
+NSFC_FILES_PATH = BASE_DIR / "nsfc_files_list.txt"
 
-def load_processed_files():
-    """加载已处理的文件记录"""
-    if not PROCESSED_FILES_PATH.exists():
-        return {}
-    
-    try:
-        with open(PROCESSED_FILES_PATH, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        api_logger.error(f"加载已处理文件记录时出错: {str(e)}")
-        return {}
-
-def save_processed_files(processed_files):
-    """保存已处理的文件记录"""
-    try:
-        with open(PROCESSED_FILES_PATH, 'w', encoding='utf-8') as f:
-            json.dump(processed_files, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        api_logger.error(f"保存已处理文件记录时出错: {str(e)}")
+# 上次运行时间
+last_run_time = None
 
 def search_nsfc_in_pdf(pdf_path):
     """在PDF文件中搜索NSFC字符"""
@@ -62,55 +41,89 @@ def search_nsfc_in_pdf(pdf_path):
 
 def scan_new_files():
     """扫描新增的PDF文件"""
-    api_logger.info("开始扫描新增PDF文件...")
+    global last_run_time
+    
+    current_time = datetime.datetime.now()
+    api_logger.info(f"开始扫描新增PDF文件... 当前时间: {current_time}")
     
     # 确保目录存在
     if not PDF_DIR.exists():
         api_logger.warning(f"PDF目录 {PDF_DIR} 不存在，将创建该目录")
         PDF_DIR.mkdir(parents=True, exist_ok=True)
     
-    # 获取已处理的文件记录
-    processed_files = load_processed_files()
-    
     # 获取所有PDF文件
-    pdf_files = [str(f) for f in PDF_DIR.glob("**/*.pdf")]
-    new_files = [f for f in pdf_files if f not in processed_files]
+    pdf_files = list(PDF_DIR.glob("**/*.pdf"))
     
-    api_logger.info(f"发现 {len(new_files)} 个新增PDF文件")
+    # 如果是第一次运行，处理所有文件
+    if last_run_time is None:
+        new_files = pdf_files
+        api_logger.info(f"首次运行，将处理所有 {len(new_files)} 个PDF文件")
+    else:
+        # 只处理上次运行后创建的文件
+        new_files = []
+        for pdf_file in pdf_files:
+            # 获取文件创建时间
+            creation_time = datetime.datetime.fromtimestamp(pdf_file.stat().st_ctime)
+            # 如果文件创建时间晚于上次运行时间，则处理
+            if creation_time > last_run_time:
+                new_files.append(pdf_file)
+        
+        api_logger.info(f"发现 {len(new_files)} 个新增PDF文件（创建时间晚于 {last_run_time}）")
     
     # 处理新文件
     nsfc_files = []
     for pdf_file in new_files:
         api_logger.info(f"处理文件: {pdf_file}")
-        contains_nsfc = search_nsfc_in_pdf(pdf_file)
-        
-        # 记录处理结果
-        processed_files[pdf_file] = {
-            "contains_nsfc": contains_nsfc,
-            "processed_time": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-        }
+        contains_nsfc = search_nsfc_in_pdf(str(pdf_file))
         
         if contains_nsfc:
             nsfc_files.append(pdf_file)
             api_logger.info(f"文件 {pdf_file} 包含NSFC字符")
     
-    # 保存处理记录
-    save_processed_files(processed_files)
+    # 更新NSFC文件列表
+    update_nsfc_files_list(nsfc_files)
     
-    # 生成包含NSFC的文件列表
-    if nsfc_files:
-        nsfc_list_path = BASE_DIR / "nsfc_files_list.txt"
-        try:
-            with open(nsfc_list_path, 'w', encoding='utf-8') as f:
-                f.write(f"# 包含NSFC字符的文件列表 (更新时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')})\n\n")
-                for file_path in nsfc_files:
-                    f.write(f"- {file_path}\n")
-            api_logger.info(f"已生成包含NSFC的文件列表: {nsfc_list_path}")
-        except Exception as e:
-            api_logger.error(f"生成NSFC文件列表时出错: {str(e)}")
+    # 更新上次运行时间
+    last_run_time = current_time
     
-    api_logger.info(f"处理完成，共有 {len(nsfc_files)} 个文件包含NSFC字符")
+    api_logger.info(f"处理完成，共有 {len(nsfc_files)} 个新文件包含NSFC字符")
     return nsfc_files
+
+def update_nsfc_files_list(new_nsfc_files):
+    """更新包含NSFC的文件列表"""
+    if not new_nsfc_files:
+        return
+    
+    # 读取现有的NSFC文件列表
+    existing_nsfc_files = []
+    if NSFC_FILES_PATH.exists():
+        try:
+            with open(NSFC_FILES_PATH, 'r', encoding='utf-8') as f:
+                lines = f.readlines()
+                # 跳过标题行
+                for line in lines:
+                    if line.startswith('- '):
+                        file_path = line.strip()[2:]  # 去掉"- "前缀
+                        existing_nsfc_files.append(file_path)
+        except Exception as e:
+            api_logger.error(f"读取NSFC文件列表时出错: {str(e)}")
+    
+    # 合并新旧文件列表
+    all_nsfc_files = existing_nsfc_files.copy()
+    for file_path in new_nsfc_files:
+        str_path = str(file_path)
+        if str_path not in all_nsfc_files:
+            all_nsfc_files.append(str_path)
+    
+    # 写入更新后的文件列表
+    try:
+        with open(NSFC_FILES_PATH, 'w', encoding='utf-8') as f:
+            f.write(f"# 包含NSFC字符的文件列表 (更新时间: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')})\n\n")
+            for file_path in all_nsfc_files:
+                f.write(f"- {file_path}\n")
+        api_logger.info(f"已更新NSFC文件列表，共 {len(all_nsfc_files)} 个文件")
+    except Exception as e:
+        api_logger.error(f"更新NSFC文件列表时出错: {str(e)}")
 
 def main():
     """主函数"""
