@@ -478,11 +478,11 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
         if session:
             session.close()
 
-def search_paper_authors(is_china=True, author_positions=None, has_email=False, 
+def search_paper_authors(is_china=True, author_positions=None, has_email=False, has_nsfc=False,
                          affiliation=None, paper_title=None, research_direction=None):
     """搜索论文作者"""
     api_logger.info(f"搜索论文作者，条件: 中国作者:{is_china}, 作者类型:{author_positions}, "
-                   f"有邮箱:{has_email}, 机构:{affiliation}, 标题:{paper_title}, 研究方向:{research_direction}")
+                   f"有邮箱:{has_email},国家自然科学基金是否资助:{has_nsfc}, 机构:{affiliation}, 标题:{paper_title}, 研究方向:{research_direction}")
     
     # 获取新的会话
     session = None
@@ -495,7 +495,8 @@ def search_paper_authors(is_china=True, author_positions=None, has_email=False,
             Paper.title,
             Paper.chinese_title,
             Paper.research_direction,
-            Paper.publish_date
+            Paper.publish_date,
+            Paper.nsfc
         ).join(
             Paper, PaperAuthor.paper_id == Paper.paper_id
         )
@@ -508,6 +509,8 @@ def search_paper_authors(is_china=True, author_positions=None, has_email=False,
                 (PaperAuthor.country.like('%China%')) |
                 (PaperAuthor.country.like('%CN%'))
             )
+        
+        query = query.filter(Paper.nsfc == has_nsfc)
         
         # 2. 作者类型
         if author_positions and len(author_positions) > 0:
@@ -533,6 +536,10 @@ def search_paper_authors(is_china=True, author_positions=None, has_email=False,
         if has_email:
             query = query.filter(PaperAuthor.email != None)
             query = query.filter(PaperAuthor.email != '')
+        
+
+        
+
         
         # 4. 所属机构
         if affiliation and affiliation.strip():
@@ -828,6 +835,10 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     )
                     has_email_checkbox = gr.Checkbox(
                         label="有邮箱", 
+                        value=True
+                    )
+                    has_nsfc = gr.Checkbox(
+                        label="国家自然科学基金是否资助", 
                         value=False
                     )
                     affiliation_search = gr.Textbox(
@@ -855,6 +866,7 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     is_china_checkbox,
                     author_position,
                     has_email_checkbox,
+                    has_nsfc,
                     affiliation_search,
                     paper_title_search,
                     research_direction_search

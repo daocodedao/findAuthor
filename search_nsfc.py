@@ -89,7 +89,7 @@ def update_paper_nsfc_status(pdf_path, contains_nsfc):
             api_logger.info(f"更新论文 {paper.paper_id} 的NSFC状态")
             
             # 更新论文的NSFC状态
-            paper.has_nsfc = True
+            paper.nsfc = True
             
             # 更新该论文所有作者的NSFC状态
             authors = session.query(PaperAuthor).filter(PaperAuthor.paper_id == paper.paper_id).all()
