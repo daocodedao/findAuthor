@@ -219,6 +219,35 @@ def load_college_teachers(college_id: int) -> List[UniversityTeacher]:
     
     return teacher_df
 
+# 添加一个新的辅助函数来处理大学选择
+def process_university_selection(university_name):
+    """处理大学选择，返回大学信息和学院信息"""
+    university_df = None
+    college_df = None
+    
+    if not university_name:
+        api_logger.warning("未选择大学ID")
+        return university_df, college_df
+    
+    try:
+        university_id = getUnivercityIdByName(university_name)
+    except (ValueError, TypeError) as e:
+        api_logger.error(f"无法解析大学ID: {university_name}, 错误: {str(e)}")
+        return university_df, college_df
+    
+    university = get_university_by_id(university_id)
+    if university:
+        university_df = university_to_df([university])
+    else:
+        api_logger.warning(f"未找到ID为 {university_name} 的大学")
+        return university_df, college_df
+    
+    colleges = get_colleges_by_university(university_id)
+    api_logger.info(f"获取到大学 {university.name_cn} 的 {len(colleges)} 个学院")
+    college_df = college_to_df(colleges)
+    
+    return university_df, college_df
+
 def edit_teacher(teacher_id: int, name: str, sex: int, email: str, is_national_fun: bool, 
                 is_cs: bool, bookname: str, title: str, job_title: str, tel: str, 
                 research_direction: str, papers: str):
@@ -287,6 +316,40 @@ def delete_teacher(teacher_id: int):
             session.rollback()
         api_logger.error(f"删除教师时出错，已回滚: {str(e)}")
         return f"删除失败: {str(e)}", None
+
+def delete_college(college_id: int):
+    """删除学院"""
+    if not college_id:
+        return "请先选择学院", None
+    
+    session = None
+    try:
+        session = db_manager._get_session()
+        college = session.query(UniversityCollege).filter(UniversityCollege.id == college_id).first()
+        if college:
+            # 检查是否有关联的教师
+            teachers = session.query(UniversityTeacher).filter(UniversityTeacher.college_id == college_id).all()
+            if teachers:
+                return f"无法删除学院，该学院下有 {len(teachers)} 名教师", None
+            
+            session.delete(college)
+            session.commit()
+            return "学院删除成功", None
+        else:
+            return "未找到该学院", None
+    except SQLAlchemyError as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"数据库删除出错，已回滚: {str(e)}")
+        return f"删除失败: {str(e)}", None
+    except Exception as e:
+        if session:
+            session.rollback()
+        api_logger.error(f"删除学院时出错，已回滚: {str(e)}")
+        return f"删除失败: {str(e)}", None
+    finally:
+        if session:
+            session.close()
 
 def add_college(university_id: int, name: str, website: str, add_college_info:pd.DataFrame):
     """添加或更新学院"""
@@ -677,13 +740,22 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     
                     add_name = gr.Textbox(label="学院名称")
                     add_website = gr.Textbox(label="学院官网")
-                    add_college_button = gr.Button("保存")  # 将"添加学院"改为"保存"
+                    
+                    # 添加按钮行
+                    with gr.Row():
+                        add_college_button = gr.Button("保存")
+                        delete_college_button = gr.Button("删除学院", variant="stop")
+                    
                     add_college_message = gr.Textbox(label="消息")
                     
                 with gr.Column():
                     add_university_info = gr.DataFrame(label="大学信息", interactive=True)
                     # 修改这里，确保学院信息表格是可交互的
                     add_college_info = gr.DataFrame(label="学院信息", interactive=True)
+                    
+                    # 添加一个隐藏的状态变量，用于存储当前选中的学院ID
+                    selected_college_id = gr.State(value=None)
+                    
                     add_university_dropdown.change(
                         fn=lambda uni_id: (api_logger.info(f"选择大学ID: {uni_id}"), 
                                          process_university_selection(uni_id))[1],
@@ -693,78 +765,74 @@ with gr.Blocks(title="大学信息管理系统") as demo:
                     
                     # 添加一个辅助函数来处理学院选择
                     def handle_college_selection(df: pd.DataFrame, evt: gr.SelectData):
-                        """处理学院选择事件，返回学院名称和官网"""
+                        """处理学院选择事件，返回学院名称、官网和ID"""
                         try:
                             if evt is None:
                                 api_logger.warning("学院选择事件为None")
-                                return "", ""
+                                return "", "", None
                             
                             # 尝试不同的事件数据结构
                             if isinstance(evt, list) and len(evt) > 0:
                                 # 新版Gradio的事件格式
                                 row_idx = evt[0]
                                 api_logger.info(f"使用列表索引方式获取行: {row_idx}")
-                                return df.loc[row_idx, "学院名称"], df.loc[row_idx, "学院官网"]
+                                return df.loc[row_idx, "学院名称"], df.loc[row_idx, "学院官网"], int(df.loc[row_idx, "ID"])
                             elif hasattr(evt, 'index') and evt.index:
                                 # 旧版Gradio的事件格式
                                 row_idx = evt.index[0]
                                 api_logger.info(f"使用evt.index方式获取行: {row_idx}")
-                                return df.loc[row_idx, "学院名称"], df.loc[row_idx, "学院官网"]
+                                return df.loc[row_idx, "学院名称"], df.loc[row_idx, "学院官网"], int(df.loc[row_idx, "ID"])
                             elif isinstance(evt, dict) and 'index' in evt:
                                 # 另一种可能的事件格式
                                 row_idx = evt['index'][0] if isinstance(evt['index'], list) else evt['index']
                                 api_logger.info(f"使用字典索引方式获取行: {row_idx}")
-                                return df.loc[row_idx, "学院名称"], df.loc[row_idx, "学院官网"]
+                                return df.loc[row_idx, "学院名称"], df.loc[row_idx, "学院官网"], int(df.loc[row_idx, "ID"])
                             else:
                                 api_logger.warning(f"未知的事件格式: {evt}")
-                                return "", ""
+                                return "", "", None
                         except Exception as e:
                             api_logger.error(f"处理学院选择时出错: {str(e)}")
-                            return "", ""
+                            return "", "", None
                 
-                
-                                    # 添加学院信息选择事件处理
-                    
+                    # 更新学院信息选择事件处理，添加ID输出
                     add_college_info.select(
                         fn=handle_college_selection,
                         inputs=[add_college_info],
-                        outputs=[add_name, add_website]
+                        outputs=[add_name, add_website, selected_college_id]
                     )
-                    # 添加一个新的辅助函数来处理大学选择
-                def process_university_selection(university_name):
-                    university_df = None
-                    college_df = None
-                    while True:
-                        if not university_name:
-                            api_logger.warning("未选择大学ID")
-                            break
-                        
-                        try:
-                            university_id = getUnivercityIdByName(university_name)
-                        except (ValueError, TypeError) as e:
-                            api_logger.error(f"无法解析大学ID: {university_name}, 错误: {str(e)}")
-                            break
-                        
-                        university = get_university_by_id(university_id)
-                        if university:
-                            university_df = university_to_df([university])
-                        else:
-                            api_logger.warning(f"未找到ID为 {university_name} 的大学")
-                            break
-                        
-                        colleges = get_colleges_by_university(university_id)
-                        api_logger.info(f"获取到大学 {university.name_cn} 的 {len(colleges)} 个学院")
-                        college_df = college_to_df(colleges)
-                        break
                     
-                    return university_df, college_df                          
+                    # 添加删除学院按钮的点击事件
+                    def handle_delete_college(college_id, university_id):
+                        if not college_id:
+                            return "请先选择要删除的学院", None
+                        
+                        message, _ = delete_college(college_id)
+                        
+                        # 重新加载学院列表
+                        if "成功" in message and university_id:
+                            try:
+                                university_id = getUnivercityIdByName(university_id)
+                                colleges = get_colleges_by_university(university_id)
+                                college_df = college_to_df(colleges)
+                                return message, college_df
+                            except Exception as e:
+                                api_logger.error(f"重新加载学院列表时出错: {str(e)}")
+                                return message, None
+                        
+                        return message, None
+                    
+                    delete_college_button.click(
+                        fn=handle_delete_college,
+                        inputs=[selected_college_id, add_university_dropdown],
+                        outputs=[add_college_message, add_college_info]
+                    )
 
-                add_college_button.click(
-                    fn=add_college,
-                    inputs=[add_university_dropdown, add_name, add_website, add_college_info],
-                    outputs=[add_college_message, add_name, add_website, add_college_info]
-                )
-                
+        add_college_button.click(
+            fn=add_college,
+            inputs=[add_university_dropdown, add_name, add_website, add_college_info],
+            outputs=[add_college_message, add_name, add_website, add_college_info]
+        )
+        
 
         # 添加第三个标签页：教师搜索
         with gr.TabItem("教师搜索"):
