@@ -14,14 +14,39 @@ import PyPDF2
 import schedule
 from pathlib import Path
 from utils.logger_settings import api_logger
+from db_manager import DBManager
+from model.paper import Paper
+from model.paperAuthor import PaperAuthor
 
 # 基础目录
 BASE_DIR = Path(__file__).parent
 PDF_DIR = BASE_DIR / "cache" / "pdf"
 NSFC_FILES_PATH = BASE_DIR / "nsfc_files_list.txt"
+LAST_RUN_TIME_FILE = BASE_DIR / "last_nsfc_run_time.txt"
 
-# 上次运行时间
-last_run_time = None
+db_manager = DBManager()
+
+def get_last_run_time():
+    """从文件中读取上次运行时间"""
+    if not LAST_RUN_TIME_FILE.exists():
+        return None
+    
+    try:
+        with open(LAST_RUN_TIME_FILE, 'r') as f:
+            time_str = f.read().strip()
+            return datetime.datetime.fromisoformat(time_str)
+    except Exception as e:
+        api_logger.error(f"读取上次运行时间出错: {str(e)}")
+        return None
+
+def save_last_run_time(run_time):
+    """将运行时间保存到文件中"""
+    try:
+        with open(LAST_RUN_TIME_FILE, 'w') as f:
+            f.write(run_time.isoformat())
+        api_logger.info(f"已保存运行时间: {run_time}")
+    except Exception as e:
+        api_logger.error(f"保存运行时间出错: {str(e)}")
 
 def search_nsfc_in_pdf(pdf_path):
     """在PDF文件中搜索NSFC字符"""
@@ -39,12 +64,61 @@ def search_nsfc_in_pdf(pdf_path):
         api_logger.error(f"处理PDF文件 {pdf_path} 时出错: {str(e)}")
         return False
 
+def update_paper_nsfc_status(pdf_path, contains_nsfc):
+    """更新论文和作者的NSFC状态"""
+    if not contains_nsfc:
+        return False
+    
+    # 从PDF文件路径中提取文件名（不含后缀）
+    pdf_file = Path(pdf_path)
+    file_name_without_ext = pdf_file.stem
+    
+    # 获取数据库会话
+    session = db_manager._get_session()
+    try:
+        # 搜索匹配的论文
+        search_pattern = f"%{file_name_without_ext}%"
+        papers = session.query(Paper).filter(Paper.paper_id.like(search_pattern)).all()
+        
+        if not papers:
+            api_logger.warning(f"未找到与文件名 {file_name_without_ext} 匹配的论文")
+            return False
+        
+        updated_count = 0
+        for paper in papers:
+            api_logger.info(f"更新论文 {paper.paper_id} 的NSFC状态")
+            
+            # 更新论文的NSFC状态
+            paper.has_nsfc = True
+            
+            # 更新该论文所有作者的NSFC状态
+            authors = session.query(PaperAuthor).filter(PaperAuthor.paper_id == paper.paper_id).all()
+            for author in authors:
+                author.nsfc = True
+                api_logger.info(f"更新作者 {author.author_name} 的NSFC状态")
+            
+            updated_count += 1
+        
+        # 提交事务
+        session.commit()
+        api_logger.info(f"成功更新 {updated_count} 篇论文和相关作者的NSFC状态")
+        return True
+    
+    except Exception as e:
+        session.rollback()
+        api_logger.error(f"更新NSFC状态时出错: {str(e)}")
+        return False
+    
+    finally:
+        session.close()
+
 def scan_new_files():
     """扫描新增的PDF文件"""
-    global last_run_time
-    
     current_time = datetime.datetime.now()
     api_logger.info(f"开始扫描新增PDF文件... 当前时间: {current_time}")
+    
+    # 获取上次运行时间
+    last_run_time = get_last_run_time()
     
     # 确保目录存在
     if not PDF_DIR.exists():
@@ -79,12 +153,19 @@ def scan_new_files():
         if contains_nsfc:
             nsfc_files.append(pdf_file)
             api_logger.info(f"文件 {pdf_file} 包含NSFC字符")
+            
+            # 更新数据库中的NSFC状态
+            update_result = update_paper_nsfc_status(str(pdf_file), contains_nsfc)
+            if update_result:
+                api_logger.info(f"成功更新数据库中 {pdf_file} 相关的NSFC状态")
+            else:
+                api_logger.warning(f"未能更新数据库中 {pdf_file} 相关的NSFC状态")
     
     # 更新NSFC文件列表
     update_nsfc_files_list(nsfc_files)
     
-    # 更新上次运行时间
-    last_run_time = current_time
+    # 保存本次运行时间
+    save_last_run_time(current_time)
     
     api_logger.info(f"处理完成，共有 {len(nsfc_files)} 个新文件包含NSFC字符")
     return nsfc_files
