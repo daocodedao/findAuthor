@@ -430,7 +430,7 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
             university_website = result[2]  # 大学网址
             city = result[3]  # 城市
             name = result[4] or "未知"  # 学院名称，可能为None
-            research_direction = teacher.research_direction[:128] if teacher.research_direction else ""
+            research_direction = teacher.research_direction[:64] if teacher.research_direction else ""
 
             data.append({
                 "次序":idx,
