@@ -17,6 +17,5 @@ echo "${YELLOW}check $jobName pid $TAILPID ${NOCOLOR}"
 
 mkdir -p logs
 
-
 echo "${YELLOW}nohup $pythonPath $jobDir/$jobName > logs/${logName}.log 2>&1 &${NOCOLOR}"
 nohup $pythonPath $jobDir/$jobName > logs/${logName}.log 2>&1 &

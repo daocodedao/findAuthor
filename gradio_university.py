@@ -422,7 +422,9 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
         # 转换为DataFrame，添加额外信息
         data = []
         sex_map = {0: "未知", 1: "男", 2: "女"}
+        idx = 0
         for result in results:
+            idx = idx + 1
             teacher = result[0]  # 教师对象
             university_name = result[1]  # 大学名称
             university_website = result[2]  # 大学网址
@@ -430,25 +432,26 @@ def search_teachers(is_national_fun=None, university_name=None, city=None, is_pu
             name = result[4] or "未知"  # 学院名称，可能为None
             
             data.append({
-                "ID": teacher.id,
+                "次序":idx,
+                "数据库ID": teacher.id,
+                "大学名称": university_name,
                 "姓名": teacher.name,
+                "研究方向": teacher.research_direction or "",
+                "个人主页": teacher.homepage or "",
                 "性别": sex_map.get(teacher.sex, "未知"),
                 "城市": city,
-                "大学名称": university_name,
                 "出过专著": "是" if teacher.is_pub_book else "否",
                 "科学出过专著": "是" if teacher.is_pub_book_sciencep else "否",
                 "科学出版的著作": teacher.sciencep_bookname or "",
                 "大学网址": university_website,
                 "学院名称": name,
                 "邮箱": teacher.email or "",
-                "个人主页": teacher.homepage or "",
                 "主持国家基金": "是" if teacher.is_national_fun else "否",
                 "计算机相关": "是" if teacher.is_cs else "否",
                 "著作名": teacher.bookname or "",
                 "职称": teacher.title or "",
                 "职位": teacher.job_title or "",
                 "电话": teacher.tel or "",
-                "研究方向": teacher.research_direction or "",
             })
         
         # 关闭会话

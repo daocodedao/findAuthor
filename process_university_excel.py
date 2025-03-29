@@ -12,6 +12,31 @@ from utils.logger_settings import api_logger
 from db_manager import DBManager
 
 
+# 新建个python文件，实现如下功能
+# 1）打开 data 文件夹下所有excel
+# 2）每个excel 里的tab名字都是大学名字
+# 3）大学名字后面后括号，标记大学类型，比如 985 211
+# 4）获取所有大学名字，并通过 ChineseUniversity 判断数据库是否有这个大学
+
+
+# 1）打开 data 文件夹下所有excel
+# 2）每个excel 里的tab名字都是大学名字
+# 3）大学名字后面后括号，标记大学类型，比如 985 211
+# 4）获取每个tab表里的作者，通过 UniversityTeacher 判断数据库是否有作者，没有就保存。excel列和 UniversityTeacher 对应如下
+# excel表:姓名 -> UniversityTeacher:name
+# excel表:学院 -> UniversityCollege:name
+# excel表:职称 -> UniversityCollege:title
+# excel表:研究方向 -> UniversityCollege:research_direction
+# excel表:电子邮箱 -> UniversityCollege:email
+# excel表:电话 -> UniversityCollege:tel
+# excel表:出版专著 是checkbox -> UniversityCollege:is_pub_book 默认0，如果checkbox选中，is_pub_book 为 1
+# excel表:本社专著 是checkbox -> UniversityCollege:is_pub_book_sciencep 默认0，如果checkbox选中，is_pub_book_sciencep 为 1
+# excel表:外设出版专著主要信息 -> UniversityCollege:bookname
+# excel表:本社专著信息 -> UniversityCollege:bookname  添加到bookname里
+
+
+
+
 db_manager = DBManager()
 openAiClient = OpenAI(base_url="http://39.105.194.16:6691/v1", api_key="key")
         
@@ -494,8 +519,8 @@ def process_teacher_data(data_folder: str) -> Dict:
                         tel = row["电话"] if "电话" in df.columns and not pd.isna(row["电话"]) else ""
                         
                         # 处理复选框字段
-                        is_pub_book = 1 if "出版专著" in df.columns and not pd.isna(row["出版专著"]) and row["出版专著"] else 0
-                        is_pub_book_sciencep = 1 if "本社专著" in df.columns and not pd.isna(row["本社专著"]) and row["本社专著"] else 0
+                        is_pub_book = 1 if "出版专著" in df.columns and not pd.isna(row["出版专著"]) and row["出版专著"] == "是" else 0
+                        is_pub_book_sciencep = 1 if "本社专著" in df.columns and not pd.isna(row["本社专著"]) and row["本社专著"] == "是" else 0
                         
                         # 处理专著信息
                         bookname = ""
@@ -515,6 +540,8 @@ def process_teacher_data(data_folder: str) -> Dict:
                         if existing_teacher:
                             api_logger.info(f"教师已存在: {uni_name} - {name}")
                             existing_teacher.sciencep_bookname = sciencep_bookname
+                            existing_teacher.is_pub_book = is_pub_book
+                            existing_teacher.is_pub_book_sciencep = is_pub_book_sciencep
                             try:
                                 session.commit()
                                 api_logger.info(f"已更新教师本社专著信息: {uni_name} - {name}")
@@ -613,8 +640,8 @@ def export_failed_teachers_to_csv(failed_records: List[Dict], output_path: str) 
 def processTeachers():
     """处理教师数据并保存到数据库"""
     data_folder = os.path.join(os.path.dirname(__file__), "data")
-    # data_folder = os.path.join(data_folder, "universities")
-    data_folder = os.path.join(data_folder, "test")
+    data_folder = os.path.join(data_folder, "universities")
+    # data_folder = os.path.join(data_folder, "test")
     
     # 处理Excel文件中的教师数据
     api_logger.info("开始处理Excel文件中的教师数据...")
