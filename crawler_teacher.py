@@ -152,7 +152,7 @@ class CollegeWebCrawler:
             try:    
                 # 调用OpenAI API分析内容
                 response = self.openAiClient.chat.completions.create(
-                    model="Qwen/Qwen2.5-7B-Instruct",
+                    model="Qwen/Qwen3-8B",
                     messages=[
                         {"role": "system", "content": "你是一个专业的网页内容分析工具，能够准确提取教师信息。"},
                         {"role": "user", "content": prompt}
@@ -161,6 +161,7 @@ class CollegeWebCrawler:
                 
                 # 获取分析结果
                 analysis_result = response.choices[0].message.content.strip()
+                analysis_result = re.sub(r'<think>.*?</think>', '', analysis_result, flags=re.DOTALL)
                 api_logger.info(f"页面分析结果: {analysis_result}")
                 
                 # 初始化teacher_info变量
@@ -400,7 +401,7 @@ class CollegeWebCrawler:
         
         # 调用OpenAI API
         response = self.openAiClient.chat.completions.create(
-            model="Qwen/Qwen2.5-7B-Instruct",
+            model="Qwen/Qwen3-8B",
             messages=[
                 {"role": "system", "content": "你是一个专业的网页分析工具，能够准确识别网页的指定内容区域。"},
                 {"role": "user", "content": prompt}
@@ -409,6 +410,7 @@ class CollegeWebCrawler:
         
         # 获取返回的选择器
         selector = response.choices[0].message.content.strip()
+        selector = re.sub(r'<think>.*?</think>', '', selector, flags=re.DOTALL)
         api_logger.info(f"OpenAI识别的主要内容选择器: {selector}")
         
         # 使用选择器查找元素

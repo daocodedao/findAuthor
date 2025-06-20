@@ -186,7 +186,7 @@ def get_university_details_from_openai(university_name: str, is_985: bool, is_21
         """
         
         response = openAiClient.chat.completions.create(
-            model="Qwen/Qwen2.5-7B-Instruct",
+            model="Qwen/Qwen3-8B",
             messages=[
                 {"role": "system", "content": "你是一个专业的中国大学信息助手，请提供准确的大学信息。"},
                 {"role": "user", "content": prompt}
@@ -195,7 +195,7 @@ def get_university_details_from_openai(university_name: str, is_985: bool, is_21
         
         # 提取返回的JSON内容
         content = response.choices[0].message.content.strip()
-        
+        content = re.sub(r'<think>.*?</think>', '', content, flags=re.DOTALL)
         # 处理可能的JSON格式问题
         import json
         import re

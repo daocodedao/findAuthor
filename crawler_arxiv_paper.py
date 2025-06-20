@@ -4,6 +4,7 @@ import time
 from datetime import datetime, timedelta
 import json
 import os
+import re
 
 import io
 from openai import OpenAI
@@ -86,7 +87,7 @@ class ArxivMonitor:
             api_logger.debug(f"发送到OpenAI的提示长度: {len(prompt)}")
             
             response = self.openAiClient.chat.completions.create(
-                model="Qwen/Qwen2.5-7B-Instruct",
+                model="Qwen/Qwen3-8B",
                 messages=[
                     {
                         "role": "system",
@@ -97,6 +98,7 @@ class ArxivMonitor:
             )
 
             result = response.choices[0].message.content
+            result = re.sub(r'<think>.*?</think>', '', result, flags=re.DOTALL)
 
             # 尝试解析 JSON 结果
             try:
