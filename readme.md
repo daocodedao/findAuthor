@@ -22,6 +22,9 @@ python crawler_university_teacher.py
 python gradio_university.py
 
 ```
+![gradio 截图](images/screen1.png)
+
+
 
 # 权限
 ```
