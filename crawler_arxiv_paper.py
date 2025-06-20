@@ -214,6 +214,8 @@ class ArxivMonitor:
                     if not paper_info:
                         api_logger.info(f"论文 '{title}' OpenAI分析失败，跳过")
                         continue
+                    else:
+                        api_logger.info(f"论文返回json:{paper_info}")
                     
                     paper_info["title"] = title
                     paper_info["paper_id"] = paper_id
