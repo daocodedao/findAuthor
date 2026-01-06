@@ -76,8 +76,8 @@ def _extract_text_from_pdf( pdf_file):
     try:
         reader = PyPDF2.PdfReader(pdf_file)
         text = ""
-        # 只提取前 5 页，避免处理过多内容
-        max_pages = min(5, len(reader.pages))
+        # 只提取前 2 页，避免处理过多内容
+        max_pages = min(2, len(reader.pages))
         for i in range(max_pages):
             text += reader.pages[i].extract_text() + "\n"
         return text

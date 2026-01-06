@@ -38,7 +38,7 @@ from db_manager import DBManager
 
 
 db_manager = DBManager()
-openAiClient = OpenAI(base_url="http://39.105.194.16:6691/v1", api_key="key")
+openAiClient = OpenAI(base_url=os.getenv('OPENAI_BASE_URL'), api_key=os.getenv('OPENAI_API_KEY'))
         
 
 def extract_university_info(sheet_name: str) -> Tuple[str, bool, bool]:
@@ -186,7 +186,7 @@ def get_university_details_from_openai(university_name: str, is_985: bool, is_21
         """
         
         response = openAiClient.chat.completions.create(
-            model="Qwen/Qwen3-8B",
+            model=os.getenv('OPENAI_API_MODEL'),
             messages=[
                 {"role": "system", "content": "你是一个专业的中国大学信息助手，请提供准确的大学信息。"},
                 {"role": "user", "content": prompt}

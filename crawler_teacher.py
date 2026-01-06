@@ -62,9 +62,7 @@ class CollegeWebCrawler:
         
         self.disallowed_paths = []
     
-        self.openAiClient = OpenAI(
-            base_url="http://39.105.194.16:6691/v1", api_key="key"
-        )
+        self.openAiClient = OpenAI(base_url=os.getenv('OPENAI_BASE_URL'), api_key=os.getenv('OPENAI_API_KEY'))
     
     def ifValidUrlText(self, link_text):
         if not link_text:
@@ -152,7 +150,7 @@ class CollegeWebCrawler:
             try:    
                 # 调用OpenAI API分析内容
                 response = self.openAiClient.chat.completions.create(
-                    model="Qwen/Qwen3-8B",
+                    model=os.getenv('OPENAI_API_MODEL'),
                     messages=[
                         {"role": "system", "content": "你是一个专业的网页内容分析工具，能够准确提取教师信息。"},
                         {"role": "user", "content": prompt}
@@ -401,7 +399,7 @@ class CollegeWebCrawler:
         
         # 调用OpenAI API
         response = self.openAiClient.chat.completions.create(
-            model="Qwen/Qwen3-8B",
+            model=os.getenv('OPENAI_API_MODEL'),
             messages=[
                 {"role": "system", "content": "你是一个专业的网页分析工具，能够准确识别网页的指定内容区域。"},
                 {"role": "user", "content": prompt}

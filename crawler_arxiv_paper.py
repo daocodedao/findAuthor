@@ -32,7 +32,7 @@ class ArxivMonitor:
         self.db_manager = DBManager()
         
         # 设置 OpenAI API 密钥
-        self.openAiClient = OpenAI(base_url="http://39.105.194.16:6691/v1", api_key="key")
+        self.openAiClient = OpenAI(base_url=os.getenv('OPENAI_BASE_URL'), api_key=os.getenv('OPENAI_API_KEY'))
         
     
     def _analyze_paper_with_openai(self, paper_text, paper_title, paper_authors, summary):
@@ -87,7 +87,7 @@ class ArxivMonitor:
             api_logger.debug(f"发送到OpenAI的提示长度: {len(prompt)}")
             
             response = self.openAiClient.chat.completions.create(
-                model="Qwen/Qwen3-8B",
+                model=os.getenv('OPENAI_API_MODEL'),
                 messages=[
                     {
                         "role": "system",
