@@ -12,6 +12,14 @@ pip install -r requirements.txt
 
 # 运行
 ```
+# 查看mysql是否运行
+docker ps -a
+# 启动mysql
+docker start mysqlid
+
+#运行 
+
+
 # 从 arxiv 获取计算机论文作者
 python crawler_arxiv_paper.py
 

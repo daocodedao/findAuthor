@@ -9,6 +9,7 @@ from model.university import ChineseUniversity
 from utils.logger_settings import api_logger
 import os
 from dotenv import load_dotenv
+import platform
 
 # 加载.env文件
 load_dotenv()
@@ -17,8 +18,14 @@ class DBManager:
     def __init__(self, db_config=None):
         # 如果没有提供配置，从环境变量中读取
         if not db_config:
+            # 检测是否为 Mac 电脑，如果是则使用特定的数据库地址
+            if platform.system() == 'Darwin':  # Darwin 是 Mac OS 的内核名称
+                default_host = '192.168.21.88'
+            else:
+                default_host = '127.0.0.1'
+                
             self.db_config = {
-                'host': os.getenv('DB_HOST', '127.0.0.1'),
+                'host': os.getenv('DB_HOST', default_host),
                 'user': os.getenv('DB_USER', 'root'),
                 'password': os.getenv('DB_PASSWORD', ''),
                 'database': os.getenv('DB_NAME', 'author_marketing')
