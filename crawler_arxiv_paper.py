@@ -5,15 +5,10 @@ from datetime import datetime, timedelta
 import json
 import os
 import re
-
-import io
 from openai import OpenAI
 import schedule
-import hashlib
 from db_manager import DBManager
 from model.paper import Paper
-from model.paperAuthor import PaperAuthor
-
 from utils.logger_settings import api_logger
 from utils.pdfUtils import _get_xvid_from_pdf_url, _download_pdf, _extract_text_from_pdf
 
@@ -32,6 +27,7 @@ class ArxivMonitor:
         self.db_manager = DBManager()
         
         # 设置 OpenAI API 密钥
+        # base_url=os.getenv('OPENAI_BASE_URL')
         self.openAiClient = OpenAI(base_url=os.getenv('OPENAI_BASE_URL'), api_key=os.getenv('OPENAI_API_KEY'))
         
     
